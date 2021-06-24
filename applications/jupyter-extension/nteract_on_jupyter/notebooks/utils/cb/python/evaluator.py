@@ -164,7 +164,7 @@ class ExpressionBuilder:
         return label
 
     def note_leaf(self, nid, path, labels, maps):
-        path = "query_java('{}')".format(path)
+        path = "query_python('{}')".format(path)
         if path not in self.exprs_to_vars:
             ref = self.add_var(path)
             self.label_var(ref, labels, maps)
@@ -218,7 +218,7 @@ class ExpressionBuilder:
             state[key] = eval(
                 expr, 
                 { 
-                    'query_java': query_java,
+                    'query_python': query_python,
                     'merge_paths': merge_paths,
                     'get_results': get_results,
                 }, 
@@ -589,12 +589,12 @@ class Evaluator:
 
             if self.state_stack.has_merge():
                 ref1 = self.expr_builder.add_var(
-                    "query_java('{}')".format(lhs[0])
+                    "query_python('{}')".format(lhs[0])
                 )
                 self.expr_builder.label_var(ref1, lhs_labels, lhs_maps)
 
                 ref2 = self.expr_builder.add_var(
-                    "query_java('{}')".format(path)
+                    "query_python('{}')".format(path)
                 )
                 self.expr_builder.label_var(ref2, labels, maps)
 
@@ -614,12 +614,12 @@ class Evaluator:
 
             if self.state_stack.has_merge():
                 ref1 = self.expr_builder.add_var(
-                    "query_java('{}')".format(lhs[0])
+                    "query_python('{}')".format(lhs[0])
                 )
                 self.expr_builder.label_var(ref1, lhs_labels, lhs_maps)
 
                 ref2 = self.expr_builder.add_var(
-                    "query_java('{}')".format(path)
+                    "query_python('{}')".format(path)
                 )
                 self.expr_builder.label_var(ref2, labels, maps)
 

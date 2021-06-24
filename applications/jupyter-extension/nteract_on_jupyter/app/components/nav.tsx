@@ -4,17 +4,17 @@ import styled, { StyledComponent } from "styled-components";
 const NavUl: StyledComponent<"ul", any, {}, never> = styled.ul`
   display: flex;
   justify-content: space-between;
-  padding: 0 8px;
+  padding: 0 4px;
   margin: 0 auto;
   width: 100%;
-  line-height: 72px;
+  line-height: 40px;
 `;
 
 const NavLi: StyledComponent<"li", any, {}, never> = styled.li`
   display: flex;
   box-sizing: border-box;
   padding: 0px 0px;
-  line-height: 72px;
+  line-height: 40px;
 
   /* 
    * When we have a nav section that ends up on the right, 
@@ -30,14 +30,14 @@ const NavSectionUl: StyledComponent<"ul", any, {}, never> = styled.ul`
   padding: 0px 0px;
   display: flex;
   justify-content: space-between;
-  line-height: 72px;
+  line-height: 40px;
 `;
 
 const NavSectionLi: StyledComponent<"li", any, {}, never> = styled.li`
   display: flex;
   padding: 0px 0px;
   margin: 0px var(--nt-spacing-xl) 0px 0px;
-  line-height: 72px;
+  line-height: 40px;
 `;
 
 const WrapperDiv: StyledComponent<"div", any, {}, never> = styled.div`

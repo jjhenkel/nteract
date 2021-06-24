@@ -9,8 +9,8 @@ from .querybuilder import CB
 ###############################################################################
 
 
-def new(*args):
-    return CB('object_creation_expression').with_constraints(*args)
+def attribute(*args):
+    return CB('attribute').with_constraints(*args)
 
 
 def param(*args):
@@ -18,71 +18,31 @@ def param(*args):
 
 
 def call(*args):
-    return CB('method_invocation').with_constraints(*args)
+    return CB('call').with_constraints(*args)
 
 
 def string(*args):
-    return CB('string_literal').with_constraints(*args)
+    return CB('string').with_constraints(*args)
+
+
+def identifier(*args):
+    return CB('identifier').with_constraints(*args)
 
 
 def integer(*args):
-    return CB('decimal_integer_literal').with_constraints(*args)
+    return CB('integer').with_constraints(*args)
 
 
-def method_param(*args):
-    return CB('formal_parameter').with_constraints(*args)
-
-
-def annotation(*args):
-    return CB('annotation').with_constraints(*args)
-
-
-def method_declaration(*args):
-    return CB('method_declaration').with_constraints(*args)
-
-
-def field_ref(*args):
-    return CB('field_declaration_ref').with_constraints(*args)
-
-
-def type_(*args):
-    return CB('type_identifier').with_constraints(*args)
+def function(*args):
+    return CB('function_definition').with_constraints(*args)
 
 
 def comment(*args):
     return CB('comment').with_constraints(*args)
 
 
-def comment(*args):
-    return CB('comment').with_constraints(*args)
-
-
-def field_access(*args):
-    return CB('field_access').with_constraints(*args)
-
-
-def assert_statement(*args):
-    return CB('assert_statement').with_constraints(*args)
-
-
-def assignment_expression(*args):
-    return CB('assignment_expression').with_constraints(*args)
-
-
-def binary_expression(*args):
-    return CB('binary_expression').with_constraints(*args)
-
-
-def array_creation_expression(*args):
-    return CB('array_creation_expression').with_constraints(*args)
-
-
-def enhanced_for_statement(*args):
-    return CB('enhanced_for_statement').with_constraints(*args)
-
-
-def instanceof_expression(*args):
-    return CB('instanceof_expression').with_constraints(*args)
+def assignment(*args):
+    return CB('assignment').with_constraints(*args)
 
 
 def if_statement(*args):
@@ -93,20 +53,27 @@ def try_statement(*args):
     return CB('try_statement').with_constraints(*args)
 
 
-def throw_statement(*args):
-    return CB('throw_statement').with_constraints(*args)
-
-
 def while_statement(*args):
     return CB('while_statement').with_constraints(*args)
 
 
 def lambda_expression(*args):
-    return CB('lambda_expression').with_constraints(*args)
+    return CB('lambda').with_constraints(*args)
 
 
-def labeled_statement(*args):
-    return CB('labeled_statement').with_constraints(*args)
+def import_statement(*args):
+    return CB('import_statement').with_constraints(*args)
+
+
+def import_from_statement(*args):
+    return CB('import_from_statement').with_constraints(*args)
+
+
+def dotted_name(*args):
+    return CB('dotted_name').with_constraints(*args)
+
+def wildcard_import(*args):
+    return CB('wildcard_import').with_constraints(*args)
 
 ###############################################################################
 # CONSTRAINTS
@@ -131,6 +98,14 @@ def with_text(text):
 
 def any_arg():
     return CB().with_mods(CBAnyArgIs(), CBRefTo())
+
+
+def any_child():
+    return CB().with_mods(CBAnyChildIs(), CBRefTo())
+
+
+def module_name():
+    return CB().with_mods(CBFirstChildIs())
 
 
 def the_receiver():
@@ -164,6 +139,10 @@ def the_type():
 
 def any_arg_is(subq):
     return any_arg().merge(subq)
+
+
+def any_child_is(subq):
+    return any_child().merge(subq)
 
 
 def the_receiver_is(subq):

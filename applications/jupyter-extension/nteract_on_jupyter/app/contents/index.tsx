@@ -1,4 +1,13 @@
 // Vendor modules
+import {
+  Classes,
+  ContextMenu,
+  Icon,
+  Menu,
+  MenuDivider,
+  MenuItem,
+  Tree
+} from "@blueprintjs/core";
 import * as actions from "@nteract/actions";
 import MonacoEditor from "@nteract/monaco-editor";
 import { CellType, ImmutableNotebook } from "@nteract/commutable";
@@ -39,6 +48,8 @@ interface IContentsBaseProps {
   mimetype?: string | null;
   saving: boolean;
   viewerContents: string;
+  treeViewContents: any;
+  viewerLanguage: string;
 }
 
 interface IContentsState {
@@ -97,7 +108,7 @@ class Contents extends React.PureComponent<ContentsProps, IContentsState> {
   }
 
   handleLoad() {
-    this.props.onSidePanelFileSelect();
+    // this.props.onSidePanelFileSelect();
   }
 
   render(): JSX.Element {
@@ -115,8 +126,26 @@ class Contents extends React.PureComponent<ContentsProps, IContentsState> {
       onSidePanelFileSelect,
       saving,
       showHeaderEditor,
-      viewerContents
+      viewerContents,
+      treeViewContents,
+      viewerLanguage
     } = this.props;
+
+    let onDidCreateEditor = (editor: any) => {
+      (window as any).sideEditor = editor;
+    };
+
+    let onEditorChange = (editor: any) => {
+      if ((window as any).sidePanelSelect) {
+        (window as any).sidePanelSelect();
+      }
+    };
+
+    let treeViewClick = (node: any) => {
+      node.nodeData.onClick(node);
+      node.isExpanded = !node.isExpanded;
+      this.forceUpdate();
+    };
 
     switch (contentType) {
       case "notebook":
@@ -135,7 +164,7 @@ class Contents extends React.PureComponent<ContentsProps, IContentsState> {
                 saving={saving}
               >
                 <div style={{ display: 'flex' }}>
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, minWidth: '40%' }}>
                     {contentType === "notebook" ? (
                       <React.Fragment>
                         <NotebookMenu contentRef={contentRef} />
@@ -156,16 +185,29 @@ class Contents extends React.PureComponent<ContentsProps, IContentsState> {
                       id="code-results-display-pane"
                       contentRef='e169379a-32ce-452d-b821-f76f8d61dd2d'
                       theme="vscode"
+                      onDidCreateEditor={onDidCreateEditor}
+                      onChange={onEditorChange}
                       options={{
                         lineNumbers: true,
                         automaticLayout:true,
                         fixedOverflowWidgets:true,
+                        // minimap: {
+                        //   enabled: true,
+                        //   side: 'right',
+                        //   size: 'proportional'
+                        // },
                         scrollbar: {
                           alwaysConsumeMouseWheel: false
                         }
                       }}
-                      language="java"
+                      language={viewerLanguage}
                       value={viewerContents}
+                    />
+                  </div>
+                  <div style={{ minWidth: '10%', borderLeft: '1px solid #22a6f1' }} className={"treePanel"}>
+                    <Tree
+                      contents={treeViewContents}
+                      onNodeClick={treeViewClick}
                     />
                   </div>
                 </div>
@@ -206,7 +248,15 @@ const makeMapStateToProps: any = (
   const mapStateToProps = (state: AppState): Partial<ContentsProps> => {
     const contentRef: ContentRef = initialProps.contentRef;
     
-    let viewerContents = '';
+    let viewerContents = 'No results.';
+    let viewerLanguage = (window as any).sidePanelLanguage || 'txt';
+    let treeViewContents = (window as any).sidePanelResults || [
+      {
+        id: 0,
+        hasCaret: false,
+        label: "( Empty )",
+      }
+    ];
 
     let temp = selectors.content(
       state, { contentRef: 'e169379a-32ce-452d-b821-f76f8d61dd2d' }
@@ -275,7 +325,9 @@ const makeMapStateToProps: any = (
       mimetype: content.mimetype,
       saving: content.saving,
       showHeaderEditor,
-      viewerContents
+      viewerContents,
+      treeViewContents,
+      viewerLanguage
     };
   };
 
@@ -299,13 +351,13 @@ const mapDispatchToProps = (
         })
       );
     },
-    onSidePanelFileSelect: () => {
+    onSidePanelFileSelect: (fpath: string, cref: string) => {
       return dispatch(
         actions.fetchContent({
-          filepath: 'raw-files/999990533647395383.txt',
+          filepath: fpath,
           params: {},
           kernelRef: createKernelRef(),
-          contentRef: 'e169379a-32ce-452d-b821-f76f8d61dd2d'
+          contentRef: cref
         })
       );
     },

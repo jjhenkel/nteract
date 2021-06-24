@@ -1,0 +1,36 @@
+
+/* SNIPPET: [modifiers] use.dl */ 
+<<$childtype [ "import_statement", "import_from_statement" ] $>> (
+    /* We are some use of a def */
+    dflow({{gid()}}, "entry", {{gid()}}, "exit", "use", _, {{rand(1)}}),
+    /* Get the def's nid */
+    node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, _, _, _, _, _),
+    /* That def is the "alias" part of an alised_import */
+    child_of({{fid()}}, {{rand(2)}}, _, "alias", {{rand(3)}}),
+    /* That aliased_import is the name of our import_statement */
+    child_of({{fid()}}, {{rand(3)}}, _, "name", {{nid(child)}})
+; /* OR */
+    /* We are some use of a def */
+    dflow({{gid()}}, "entry", {{gid()}}, "exit", "use", _, {{rand(1)}}),
+    /* Get the def's nid */
+    node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, _, _, _, _, _),
+    /* That def is the "alias" part of an alised_import */
+    child_of({{fid()}}, {{rand(2)}}, _, "name", {{nid(child)}})
+)
+
+<<$childtype [ "call", "string", "list", "comparison_operator", "binary_operator", "unary_operator" ] $>> (
+    /* We are some use of a def */
+    dflow({{gid()}}, "entry", {{gid()}}, "exit", "use", _, {{rand(1)}}),
+    /* Get the def's nid */
+    node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, _, _, _, _, _),
+    /* That def is the left of some stmt */
+    child_of({{fid()}}, {{rand(2)}}, _, "left", {{rand(3)}}),
+    /* We are the right of that stmt */
+    child_of({{fid()}}, {{nid(child)}}, _, "right", {{rand(3)}}),
+    /* That stmt is an assignmnet */
+    node_info({{fid()}}, {{rand(3)}}, _, "assignment", _, _, _, _)
+;
+    /* Direct use */
+    {{gid()}} = {{gid(child)}}
+)
+

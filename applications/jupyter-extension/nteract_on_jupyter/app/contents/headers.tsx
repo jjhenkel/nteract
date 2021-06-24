@@ -125,15 +125,16 @@ class FileHeader extends React.PureComponent<FileHeaderProps, State> {
             <a href={themeLogoLink} role="button" title="Home">
               <ThemedLogo />
             </a>
-            <div>
-              <H4 style={{lineHeight:"72px", fontWeight: 400}} onClick={this.openDialog}>{this.props.displayName}</H4>
+            {/* <div>
+              <H4 style={{lineHeight:"32px", fontWeight: 400}} onClick={this.openDialog}>{this.props.displayName}</H4>
               <EditableTitleOverlay
                 defaultValue={this.props.displayName}
                 isOpen={this.state.isDialogOpen}
                 onCancel={this.closeDialog}
                 onSave={this.confirmTitle}
               />
-            </div>
+            </div> */}
+            <span>{this.props.displayName}</span>
           </NavSection>
           <NavSection>
             <span className="icon">{icon}</span>

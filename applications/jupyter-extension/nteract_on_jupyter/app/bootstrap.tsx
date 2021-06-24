@@ -1,4 +1,5 @@
 // Vendor modules
+import * as monaco from "monaco-editor";
 import {
   actions,
   AppState,
@@ -51,6 +52,183 @@ export async function main(
   const hostRef = createHostRef();
   const contentRef = createContentRef();
   const NullTransform = () => null;
+
+  monaco.languages.registerHoverProvider('*', {
+    provideHover: (model, position) => {
+      let allMatches = []
+      for (let k = 0; k < (window as any).hoverTips.length; k++) {
+        let res = (window as any).hoverTips[k](position);
+        if (res) {
+          allMatches.push(res);
+        }
+      }
+      if (allMatches.length > 0) {
+        return {
+          range: allMatches[0].range,
+          contents: allMatches.map(m => m.contents).flat()
+        };
+      }
+    },
+  });
+
+  const omit = (obj: any, omitKey: string) => {
+    return Object.keys(obj).reduce((result, key) => {
+      if(key !== omitKey) {
+         result[key] = obj[key];
+      }
+      return result;
+    }, {});
+  };
+  
+  const PrintTransform = (data: any) => {
+    (window as any).sidePanelResults = [];
+    (window as any).sidePanelLanguage = data.data['lang'];
+    let resCount = 0;
+    let tid = 0;
+    let results = data.data['results'];
+
+    for (let i = 0; i < results.length; i++) {
+      if (results[i]['$match'] && results[i]['$match'].length > 0) {
+        for (let j = 0; j < results[i]['$match'].length; j++) {
+          if (resCount > 100) {
+            break;
+          }
+          resCount += 1;
+
+          let gid = results[i]['$match'][j]['gid'];
+          let fpath = results[i]['$match'][j]['fpath'];
+
+          let onClick = (node: any, e: any) => {
+
+            // Deselect
+            let worklist = [];
+            (window as any).sidePanelResults.forEach(x => worklist.push(x));
+            while (worklist.length > 0) {
+              let item = worklist.pop();
+              item.isSelected = false;
+              (item.childNodes || []).forEach(x => worklist.push(x));
+            }
+            
+            node.isSelected = true;
+
+            (window as any).store.dispatch(
+              actions.fetchContent({
+                filepath: fpath.replace('/cb-target/', '/processed/'),
+                params: {},
+                kernelRef: createKernelRef(),
+                contentRef: 'e169379a-32ce-452d-b821-f76f8d61dd2d'
+              })
+            );
+
+            let allDecorations = [];
+            (window as any).hoverTips = [];
+
+            Object.keys(results[i]).forEach((key) => {
+
+              let sl = results[i][key][j]['s_line'] + 1 || 0;
+              let sc = results[i][key][j]['s_col'] || 0;
+              let el = results[i][key][j]['e_line'] + 1 || 0;
+              let ec = results[i][key][j]['e_col'] + 1 || 0;
+              
+              allDecorations.push(
+                  { range: new monaco.Range(sl,sc,el,ec), options: { 
+                    linesDecorationsClassName: 'cbSelectionMarker',
+                    inlineClassName: 'cbInlineHighlight1' 
+                  }}
+              );
+
+              (window as any).hoverTips.push((pos) => {
+                if (pos.lineNumber >= sl && pos.column >= sc && pos.lineNumber <= el && pos.column <= ec) {
+                  return {
+                    range: new monaco.Range(sl,0,el,100),
+                    contents: [
+                      { value: '***' + key + '***' },
+                      { value: '```json\n' + JSON.stringify(omit(results[i][key][j], 'text'), null, 2) + '\n```' }
+                    ]
+                  };
+                }
+                return null;
+              });
+
+              if (key === '$match') {
+                (window as any).sideEditor.revealLineInCenter(
+                  Math.floor((sl + el) / 2)
+                );
+              }
+            });
+
+            (window as any).sidePanelSelect = () => {
+              (window as any).sideEditor.deltaDecorations([], allDecorations);
+            };
+
+          };
+
+          let pathParts = fpath.split('/').filter(x => x !== '');
+          let current = (window as any).sidePanelResults;
+
+          pathParts.forEach((p) => {
+            tid += 1;
+            let match = current.findIndex(e => e.label === p);
+            if (match === -1) {
+              current.push({
+                hasCaret: true,
+                isExpanded: true,
+                label: p,
+                id: tid,
+                nodeData: { onClick: () => null },
+                childNodes: []
+              });
+              current = current[current.length - 1].childNodes;
+            } else {
+              current = current[match].childNodes;
+            }
+          });
+
+          tid += 1;
+          current.push({
+            id: tid,
+            hasCaret: false,
+            nodeData: { onClick },
+            label: 'Match #' + (current.length + 1).toString()
+          });
+        }
+      }
+
+      if ((window as any).sidePanelResults.length > 10000) {
+        console.log("Warning: too many results to visualize.")
+        break;
+      }
+    }
+
+    let worklist = [];
+    
+    (window as any).sidePanelResults.forEach(node => worklist.push(node));
+    
+    while (worklist.length > 0) {
+      let item = worklist.pop();
+      
+      if (!item.childNodes) {
+        continue;
+      }
+
+      while (item.childNodes.length === 1) {
+        if (item.childNodes[0].label.startsWith('Match #') || item.childNodes[0].label.includes('.')) {
+          break;
+        }
+        item.label += '/' + (
+          item.childNodes[0].label
+        );
+        item.childNodes = (
+          item.childNodes[0].childNodes
+        );
+      }
+
+      item.childNodes.forEach(node => worklist.push(node));
+    }
+
+    return null;
+  };
+
   const kernelspecsRef = createKernelspecsRef();
 
   const initialState: AppState = {
@@ -81,6 +259,7 @@ export async function main(
         }),
         transforms: makeTransformsRecord({
           displayOrder: Immutable.List([
+            "application/code-book-matches+json",
             "application/vnd.jupyter.widget-view+json",
             "application/vnd.vega.v5+json",
             "application/vnd.vega.v4+json",
@@ -107,6 +286,7 @@ export async function main(
             "text/plain",
           ]),
           byId: Immutable.Map({
+            "application/code-book-matches+json": PrintTransform,
             "text/vnd.plotly.v1+html": NullTransform,
             "application/vnd.plotly.v1+json": NullTransform,
             "application/geo+json": NullTransform,

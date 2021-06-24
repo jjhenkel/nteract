@@ -1,0 +1,12 @@
+
+/* SNIPPET: [modifiers] df.dl */ 
+(
+    tdataflow({{gid(child1)}}, {{gid()}}),
+    tdataflow({{gid()}}, {{gid(child2)}})
+;
+    {{gid(child1)}} = {{gid()}},
+    tdataflow({{gid()}}, {{gid(child2)}})
+;
+    {{gid(child2)}} = {{gid()}},
+    tdataflow({{gid(child1)}}, {{gid()}})
+)

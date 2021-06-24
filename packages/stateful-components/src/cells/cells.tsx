@@ -43,6 +43,7 @@ export class Cells extends React.Component<StateProps & ComponentProps> {
         <CodeCell
           id={props.id}
           contentRef={props.contentRef}
+          status="test"
           cell_type="code"
         />
       ),

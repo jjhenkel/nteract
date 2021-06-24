@@ -13,6 +13,7 @@ interface ComponentProps {
 interface StateProps {
   cell?: ImmutableCell;
   selected: boolean;
+  status: string;
 }
 
 type Props = ComponentProps & StateProps;
@@ -26,6 +27,11 @@ export class Cell extends React.Component<Props> {
     }
     // Update cell when selecting or de-selecting it
     if (nextProps?.selected !== this.props?.selected) {
+
+      return true
+    }
+    // Update cell when changing status
+    if (nextProps?.status !== this.props?.status) {
 
       return true
     }
@@ -88,6 +94,7 @@ export class Cell extends React.Component<Props> {
         {React.cloneElement(chosenOne, {
           cell: this.props.cell,
           id: this.props.id,
+          status: this.props.status, 
           contentRef: this.props.contentRef
         })}
       </div>
@@ -104,13 +111,15 @@ export const makeMapStateToProps = (
     const model = selectors.model(state, { contentRef });
     let cell;
     let selected = false;
+    let status = 'idle';
 
     if (model && model.type === "notebook") {
       cell = selectors.notebook.cellById(model, { id });
       selected = selectors.notebook.cellFocused(model) === id;
+      status = model.transient.getIn(["cellMap", id, "status"]);
     }
 
-    return { cell, selected };
+    return { cell, selected, status };
   };
   return mapStateToProps;
 };

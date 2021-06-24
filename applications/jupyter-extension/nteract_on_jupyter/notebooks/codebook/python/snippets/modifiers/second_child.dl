@@ -1,0 +1,5 @@
+
+/* SNIPPET: [modifiers] second_child.dl */
+(
+    child_of({{fid()}}, {{nid()}}, 2, _, {{nid(parent)}})
+)

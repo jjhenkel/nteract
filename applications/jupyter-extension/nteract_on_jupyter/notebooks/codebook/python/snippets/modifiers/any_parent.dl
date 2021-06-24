@@ -1,0 +1,6 @@
+
+/* SNIPPET: [modifiers] any_parent.dl */
+(
+    /* Parent encloses us */
+    encloses({{gid(parent)}}, {{gid()}})
+)

@@ -1,0 +1,4 @@
+(
+    node_info({{fid()}}, {{nid()}}, {{gid()}}, {{type()}}, _, _, _, _),
+    debug_text({{gid()}}, {{sr()}}, {{sc()}}, {{er()}}, {{ec()}}, {{text()}})
+)

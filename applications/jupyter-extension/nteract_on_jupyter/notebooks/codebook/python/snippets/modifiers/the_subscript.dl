@@ -1,0 +1,5 @@
+
+/* SNIPPET: [modifiers] the_subscript.dl */ 
+(
+    child_of({{fid()}}, {{nid()}}, _, "subscript", {{nid(parent)}})
+)

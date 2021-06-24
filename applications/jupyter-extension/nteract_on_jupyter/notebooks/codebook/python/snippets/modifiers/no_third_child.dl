@@ -1,0 +1,5 @@
+
+/* SNIPPET: [modifiers] no_third_child.dl */
+(
+    !child_of({{fid()}}, _, 3, _, {{nid(parent)}})
+)

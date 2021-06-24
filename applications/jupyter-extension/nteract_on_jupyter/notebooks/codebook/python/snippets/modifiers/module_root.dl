@@ -1,0 +1,29 @@
+
+/* SNIPPET: [modifiers] module_root.dl */
+(
+    /* We are an identifier */
+    {{type()}} = "identifier",
+    /* That is the first child of */
+    child_of({{fid()}}, {{nid()}}, 1, _, {{rand(1)}}),
+    /* Something that is the 'name' child of */
+    child_of({{fid()}}, {{rand(1)}}, _, "name", {{rand(2)}}),
+    /* Something that is the 'name' child of our parent */
+    child_of({{fid()}}, {{rand(2)}}, _, "name", {{nid(parent)}})
+    /*  ^ This covers `import pandas.blah as ...` */
+; /* OR */
+    /* We are an identifier */
+    {{type()}} = "identifier",
+    /* That is the first child of */
+    child_of({{fid()}}, {{nid()}}, 1, _, {{rand(1)}}),
+    /* Something that is the 'name' child of our parent */
+    child_of({{fid()}}, {{rand(1)}}, _, "name", {{nid(parent)}})
+    /*  ^ This covers `import pandas.blah` */
+; /* OR */
+    /* We are an identifier */
+    {{type()}} = "identifier",
+    /* That is the first child of */
+    child_of({{fid()}}, {{nid()}}, 1, _, {{rand(1)}}),
+    /* Something that is the 'module_name' child of our parent */
+    child_of({{fid()}}, {{rand(1)}}, _, "module_name", {{nid(parent)}})
+    /*  ^ This covers `from pandas.blah import ...` */
+)

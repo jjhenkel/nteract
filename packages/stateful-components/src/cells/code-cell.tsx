@@ -26,6 +26,7 @@ interface NamedCodeCellSlots {
 interface ComponentProps {
   id: string;
   contentRef: ContentRef;
+  status: string;
   cell?: ImmutableCell;
   cell_type?: "code";
   children?: NamedCodeCellSlots;
@@ -37,7 +38,7 @@ export default class CodeCell extends React.Component<ComponentProps> {
   };
 
   render() {
-    const { id, contentRef, children } = this.props;
+    const { id, contentRef, status, children } = this.props;
 
     const defaults = {
       prompt: (props: { id: string; contentRef: string }) => (

@@ -23,6 +23,18 @@ RUN wget https://github.com/Kitware/CMake/releases/download/v3.20.0/cmake-3.20.0
     ./cmake-3.20.0-linux-x86_64.sh --skip-license --prefix=/opt/cmake && \
     ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
 
+RUN apt-get update \
+  && apt-get install -y python3 python3-pip git jq \
+       autoconf automake bison build-essential clang \
+       doxygen flex g++ git libffi-dev libncurses5-dev \
+       libtool libsqlite3-dev make mcpp python \
+       sqlite zlib1g-dev htop bc parallel time
+
+WORKDIR /souffle
+
+RUN git clone https://github.com/souffle-lang/souffle /souffle && \
+  sh ./bootstrap && ./configure --enable-64bit-domain && make -j$(nproc) && make install
+
 COPY requirements.txt /arrow/python/
 
 RUN pip3 install -r /arrow/python/requirements.txt 
@@ -37,6 +49,6 @@ COPY . /app
 
 WORKDIR /app/applications/jupyter-extension
 
-RUN pip3 install -e .
+RUN pip3 install -e . && pip3 install tqdm pandas numpy scipy nbconvert
 
 ENTRYPOINT [ "bash" ]
