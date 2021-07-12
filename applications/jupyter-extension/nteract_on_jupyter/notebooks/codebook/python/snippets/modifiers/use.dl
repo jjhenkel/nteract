@@ -1,6 +1,6 @@
 
 /* SNIPPET: [modifiers] use.dl */ 
-<<$childtype [ "import_statement", "import_from_statement" ] $>> (
+<<$childtype [ "import_statement", "import_from_statement" ] $>> ( cost:=5
     /* We are some use of a def */
     dflow({{gid()}}, "entry", {{gid()}}, "exit", "use", _, {{rand(1)}}),
     /* Get the def's nid */
@@ -18,7 +18,7 @@
     child_of({{fid()}}, {{rand(2)}}, _, "name", {{nid(child)}})
 )
 
-<<$childtype [ "call", "string", "list", "comparison_operator", "binary_operator", "unary_operator" ] $>> (
+<<$childtype [ "call", "string", "list", "comparison_operator", "binary_operator", "unary_operator" ] $>> ( cost:=5
     /* We are some use of a def */
     dflow({{gid()}}, "entry", {{gid()}}, "exit", "use", _, {{rand(1)}}),
     /* Get the def's nid */

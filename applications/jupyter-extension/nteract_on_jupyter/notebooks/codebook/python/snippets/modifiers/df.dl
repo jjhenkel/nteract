@@ -1,12 +1,33 @@
 
 /* SNIPPET: [modifiers] df.dl */ 
-(
+( cost:=4
+    /* Flow from source -> X -> Y -> sink */ 
     tdataflow({{gid(child1)}}, {{gid()}}),
-    tdataflow({{gid()}}, {{gid(child2)}})
+    dataflow({{gid()}}, {{output("to")}}, {{output("edge")}}),
+    tdataflow({{output("to")}}, {{gid(child2)}})
 ;
+    /* source = X -> Y */
     {{gid(child1)}} = {{gid()}},
-    tdataflow({{gid()}}, {{gid(child2)}})
+    dataflow({{gid()}}, {{output("to")}}, {{output("edge")}}),
+    tdataflow({{output("to")}}, {{gid(child2)}})
 ;
-    {{gid(child2)}} = {{gid()}},
-    tdataflow({{gid(child1)}}, {{gid()}})
+    /* X -> Y = sink */
+    tdataflow({{gid(child1)}}, {{gid()}}),
+    {{gid(child2)}} = {{output("to")}},
+    dataflow({{gid()}}, {{output("to")}}, {{output("edge")}})
+// ;
+//     /* If there's dataflow to some def */
+//     tdataflow({{gid(child1)}}, {{rand(1)}}),
+//     tdataflow({{rand(1)}}, {{gid(child2)}}),
+
+//     /* And there's two uses of that def */
+//     dataflow({{rand(1)}}, {{rand(2)}}, "direct-use"),
+//     dataflow({{rand(1)}}, {{rand(3)}}, "direct-use"),
+//     {{rand(2)}} != {{rand(3)}},
+
+//     /* Then if there's flow from one use to the next 
+//     include it here */
+//     tdataflow({{rand(1)}}, {{gid()}}),
+//     dataflow({{gid()}}, {{output("to")}}, {{output("edge")}}),
+//     tdataflow({{output("to")}}, {{rand(2)}})
 )

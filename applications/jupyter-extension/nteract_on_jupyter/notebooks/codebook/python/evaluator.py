@@ -1,11 +1,7 @@
 from .constraints import *
 from .modifiers import *
 from .querybuilder import CB
-from .snippets import SNIPPETS as S
-
-import asyncio
-import nest_asyncio
-nest_asyncio.apply()
+from .snippets import SNIPPETS as S, refresh_snippet_offsets
 
 import multiprocessing
 import pandas as pd
@@ -16,6 +12,7 @@ import gzip
 import glob
 import json
 import io
+import os
 
 
 class Relation:
@@ -69,28 +66,53 @@ class IndexFilter:
             return matches[0].intersection(*matches[1:])
 
 class Evaluator:
-    def __init__(self, query, should_debug=False):
+    _dataset = '/data/test-1k'
+
+    @staticmethod
+    def use_ds_test_1k():
+        Evaluator._dataset = '/data/test-1k'
+    @staticmethod
+    def use_ds_gh_2017():
+        Evaluator._dataset = '/data/gh-2017'
+    @staticmethod
+    def use_ds_gh_2019():
+        Evaluator._dataset = '/data/gh-2019'
+    @staticmethod
+    def use_ds_gh_2020():
+        Evaluator._dataset = '/data/gh-2020'
+
+    def __init__(self, query, should_debug=False, prefilter_files=None):
         query.idify()
+        self.inid = 1
         
         self.worklist = [ query ]
         self.debug = should_debug
 
         self.outputs = []
         self.outputs_typed = []
-        self.query = ''
+        self.query = []
         self.inputs = ''
-        self.dataset = '/data/test-1k'
+        self.dataset = Evaluator._dataset
         self.labels = []
 
         self.pre_filter_words = []
         self.all_files = None
 
-        self.query += str(
-            Relation(self, "file_info").args("fid", "fpath")
-        ) + ',\n'
-        self.set_output("fid", "fpath")
+        self.query_dl = None
+        self.files_prefilters = []
 
-    def build_query(self):
+        if prefilter_files is not None:
+            self.files_prefilters.append({
+                f.replace('/cb-target/', self.dataset + '/processed/') 
+                for f in prefilter_files
+            })
+
+        self.query.append((str(
+            Relation(self, "file_info").args("fid", "fpath")
+        ) + ',\n', 1))
+        self.set_output("fpath")
+
+    def build_query(self, compiled):
         last = None
         while len(self.worklist) > 0:
             root = self.worklist[-1]
@@ -103,73 +125,101 @@ class Evaluator:
                     child.parent = root
                     self.worklist.append(child)
 
-        header = self.get_header()
+        header = self.get_header(compiled)
         body = self.get_body()
         footer = self.get_footer()
 
         if self.debug:
             print(header + body + footer)
             return False
-        
-        with open('/app/the-query.dl', 'w') as fh:
+
+        extra_to_hash = ""
+        prelude_prefix = "/app/applications/jupyter-extension/nteract_on_jupyter/notebooks/codebook/python/snippets/"
+        with open(prelude_prefix + "/prelude.dl", "r") as fh:
+            extra_to_hash += fh.read()
+        with open(prelude_prefix + "/utils.dl", "r") as fh:
+            extra_to_hash += fh.read()
+
+        query_hash = hashlib.sha256(
+            (header + body + footer + extra_to_hash).encode('utf-8')
+        ).hexdigest()
+        self.query_dl = '/tmp/queries/{}.dl'.format(query_hash) 
+        self.query_prof_dl = '/tmp/queries/{}.prof.dl'.format(query_hash) 
+
+        with open(self.query_dl, 'w') as fh:
             fh.write(header + body + footer)
+        with open(self.query_prof_dl, 'w') as fh:
+            fh.write(self.get_header(False) + body + footer)
         
         return True
     
-    async def get_files_from_word_index(self, words):
-        index = pd.read_parquet(
-            '{}/indices/text-to-files.parquet'.format(self.dataset)
-        )
+    def get_files_from_word_index(self, words):
+        files =[ set(pd.read_parquet(
+            '{}/indices/text-to-files'.format(self.dataset),
+            filters=[('text', '=', word)],
+            columns=['file']
+        ).file.unique()) for word in words ]
 
-        sets = []
-        for word in words:
-            sets.append(set(index[index.text == word].file.unique()))
+        return set.intersection(*files)
+
+    def compile_query(self): 
+        if os.path.isfile('{}.cpp'.format(self.query_dl[:-3])):
+            print('  + Query already compiled (cached) `{}`'.format(self.query_dl))
+            return True
         
-        all_files = sets[0].intersection(*sets)
-        return all_files
-
-    async def run(self, cmd):
-        proc = await asyncio.create_subprocess_shell(
-            cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE)
-
-        stdout, stderr = await proc.communicate()
-        return stdout, stderr
-
-    async def compile_query(self):
         start = time.perf_counter()
-        compile_result = await self.run(
-            '/usr/local/bin/souffle -g- /app/the-query.dl'
-        )
+
+        profile_result = subprocess.run([
+            '/usr/local/bin/souffle',
+            '-p',
+            '{}'.format(self.query_prof_dl.replace('.dl', '')),
+            '--profile-frequency',
+            '-F',
+            '/data/for-profiling',
+            '{}'.format(self.query_prof_dl),
+        ], capture_output=True)
+
+        elapsed_time = time.perf_counter() - start
+        print(f"  + Profile time: {elapsed_time:.4f}s")
+
+
+        start = time.perf_counter()
+        compile_result = subprocess.run([
+            '/usr/local/bin/souffle',
+            '-PSIPS:profile-use',
+            '-u',
+            '{}'.format(self.query_prof_dl.replace('.dl', '')),
+            '-g-',
+            '{}'.format(self.query_dl)
+        ], capture_output=True)
 
         # FIXUP
-        the_program = compile_result[0].decode('utf-8')
+        the_program = compile_result.stdout.decode('utf-8')
         the_program = the_program.replace('return 0;\n', '\nobj.dumpOutputs();\nreturn 0;\n')
         
-        with open('/app/the-query.cpp', 'w') as fh:
+        with open('{}.cpp'.format(self.query_dl[:-3]), 'w') as fh:
             fh.write(the_program)
         
-        compile_result = await self.run(
-            '/usr/local/bin/souffle-compile /app/the-query.cpp'
-        )
+        compile_result = subprocess.run([
+            '/usr/local/bin/souffle-compile',
+            '{}.cpp'.format(self.query_dl[:-3])
+        ], capture_output=True)
         elapsed_time = time.perf_counter() - start
 
-        if compile_result[1] != b'' and b'error' in compile_result[1]:
+        if compile_result.stderr != b'' and b'error' in compile_result.stderr:
             print("Souffle compile error")
-            print(compile_result[1])
+            print(compile_result.stderr)
             return False
 
         print(f"  + Compile time: {elapsed_time:.4f}s")
         return True
     
-    async def select_files(self, limit=None):
+    def select_files(self, limit=None):
         start = time.perf_counter()
         files = []
-    
         
         if len(self.pre_filter_words) > 0:
-            files = await self.get_files_from_word_index(
+            files = self.get_files_from_word_index(
                 self.pre_filter_words
             )
             if self.debug:
@@ -182,17 +232,23 @@ class Evaluator:
                 for line in text.split('\n'):
                     if len(line.strip()) > 0:
                         self.all_files.append(line.strip())
-            self.all_files = sorted(self.all_files)
+            self.all_files = set(self.all_files)
             files = self.all_files
             if self.debug:
                 print("Retrived all files (no index)...")
                 print("  + Found {} files".format(len(files)))
+
+        if len(self.files_prefilters) > 0:
+            allowable = set.intersection(*self.files_prefilters)
+            print("  + Had only {} allowable files (pre-filter files)".format(len(allowable)))
+            files = set.intersection(files, allowable)
         
         if self.debug and limit is not None:
             print("Limiting to {} files".format(limit))
         elapsed_time = time.perf_counter() - start
 
         print(f"  + File select time: {elapsed_time:.4f}s")
+        print("  + Found {} matching files".format(len(files)))
         
         if limit is not None:
             return files[:limit]
@@ -200,34 +256,52 @@ class Evaluator:
         return files
 
     def eval(self, compile=False):
+        def divide_chunks(l, n):
+            for i in range(0, len(l), n): 
+                yield l[i:i + n]
+        refresh_snippet_offsets()
+
         total_start = time.perf_counter()
 
         # Build the query first
-        if not self.build_query():
+        if not self.build_query(compile):
             return pd.DataFrame()
 
         # Maybe compile
-        in_file = '/app/the-query.dl'
+        in_file = self.query_dl
         targets = []
         if compile:
-            status, targets = asyncio.run(asyncio.gather(
-                self.compile_query(),
-                self.select_files()
-            ))
+            targets, status = (
+                self.select_files(),
+                self.compile_query()
+            )
             # Compile failed?
             if not status:
                 return
             in_file = in_file[:-3] # Remove the .dl
         else: 
-            targets = asyncio.run(self.select_files())
+            targets = self.select_files()
+
+        # Chunk files for compiled version
+        new_targets = []
+        if compile:
+            targets = list(targets)
+            chunksize = max(int(len(targets) / (multiprocessing.cpu_count()*4)), 1)
+            target_chunks = list(divide_chunks(targets, chunksize))
+            for i, chunk in enumerate(target_chunks):
+                tpath = '/tmp/query-targets/targets-{}.txt'.format(i+1)
+                with open(tpath, 'w') as fh:
+                    fh.write('\n'.join([x + '.flow' for x in chunk]) + '\n')
+                new_targets.append(tpath)
+            targets = new_targets
 
         start = time.perf_counter()
         exec_result = subprocess.run([
             'bash',
             '-c',
             'parallel -k ' + (
-                "souffle -F{}.flow/ -D- /app/the-query.dl" if not compile 
-                else "/app/the-query -F{}.flow/"
+                ("souffle -F{}.flow/ -D- " + in_file) if not compile 
+                else (in_file + " -j 4 -F{}")
             )
         ], input=('\n'.join(targets) + '\n').encode('utf-8'), capture_output=True)
         elapsed_time = time.perf_counter() - start
@@ -235,16 +309,15 @@ class Evaluator:
 
 
         start = time.perf_counter()
-        good_text = ''
-        decoded = exec_result.stdout.decode().split('\n')
-        for line in decoded:
-            if '\t' not in line or line == '\t'.join(self.outputs):
-                continue
-            good_text += line + '\n'
+        output_tmp = '/tmp/synth-query-results.csv'
+        with open(output_tmp, 'w') as fh:
+            decoded = exec_result.stdout.decode().split('\n')
+            for line in decoded:
+                if '\t' not in line or line == '\t'.join(self.outputs):
+                    continue
+                fh.write(line + '\n')
 
-        final = pd.read_csv(io.BytesIO(
-            good_text.encode('utf-8')
-        ), sep='\t', names=self.outputs)
+        final = pd.read_csv(output_tmp, sep='\t', names=self.outputs)
         elapsed_time = time.perf_counter() - start
         print(f"  + Collation time: {elapsed_time:.4f}s")
 
@@ -254,15 +327,20 @@ class Evaluator:
         return final
 
     def get_body(self):
-        return self.query.strip().rstrip(',') + '\n  .\n'
+        clauses = sorted(self.query, key=lambda x:x[1])
+        query = ''.join([ x[0] for x in clauses ])
+        return query.strip().rstrip(',') + '\n  .\n'
 
     def get_footer(self):
         footer = ".output synth_query\n"
         return footer
 
-    def get_header(self):
+    def get_header(self, compiled):
         final = ""
-        final += '#include "/app/applications/jupyter-extension/nteract_on_jupyter/notebooks/codebook/python/snippets/prelude.dl"\n'
+        if compiled:
+            final += '#include "/app/applications/jupyter-extension/nteract_on_jupyter/notebooks/codebook/python/snippets/prelude.dl"\n'
+        else:
+            final += '#include "/app/applications/jupyter-extension/nteract_on_jupyter/notebooks/codebook/python/snippets/interp-prelude.dl"\n'
         final += self.inputs
         final += ".decl synth_query(" + ", ".join(self.outputs_typed) + ")\n"
         final +=  "synth_query(" + ", ".join(self.outputs) +") :- \n"
@@ -283,6 +361,8 @@ class Evaluator:
                 self.outputs_typed.append(arg + ":SourceText")
             elif arg.startswith('gid_'):
                 self.outputs_typed.append(arg + ":Gid")
+            elif arg.startswith('out_to_'):
+                self.outputs_typed.append(arg + ":Gid")
             elif arg == "fid":
                 self.outputs_typed.append(arg + ':Fid')
             elif arg == "fpath":
@@ -298,152 +378,213 @@ class Evaluator:
     def visit(self, node):
         name_var = None
         if 'name' in node.selects:
-            text, outputs = S['/constraints/name.dl'](node)
+            text, outputs, cost = S['/constraints/name.dl'](node)
             name_var = outputs['name']
-            self.query += text
+            self.query.append((text, cost))
 
             if node.select_as:
-                self.query += str(
+                self.query.append((str(
                     Relation(self, '$eq').args(node.select_as, name_var)
-                ) + ',\n'
+                ) + ',\n', 1))
                 self.set_output(node.select_as)
             else:
                 self.set_output(name_var)
         if 'module_name' in node.selects:
-            text, outputs = S['/constraints/module_name.dl'](node)
+            text, outputs, cost = S['/constraints/module_name.dl'](node)
             module_name_var = outputs['module_name']
-            self.query += text
+            self.query.append((text, cost))
 
             if node.select_as:
-                self.query += str(
+                self.query.append((str(
                     Relation(self, '$eq').args(node.select_as, module_name_var)
-                ) + ',\n'
+                ) + ',\n', 1))
                 self.set_output(node.select_as)
             else:
                 self.set_output(module_name_var)
         if 'text' in node.selects:
-            text, outputs = S['/constraints/text.dl'](node)
+            text, outputs, cost = S['/constraints/text.dl'](node)
             text_var = outputs['text']
-            self.query += text
+            self.query.append((text, cost))
 
             if node.select_as:
-                self.query += str(
+                self.query.append((str(
                     Relation(self, '$eq').args(node.select_as, text_var)
-                ) + ',\n'
+                ) + ',\n', 1))
                 self.set_output(node.select_as)
             else:
                 self.set_output(text_var)
         
-        if node.type is not None and node.type not in ['_', '$use', '$df']:
+        if node.type is not None and node.type not in ['_', '$use', '$df', '$literal']:
             tlabel = 'type_{}'.format(node.id if node.label is None else node.label)
             type_cons = node.type if isinstance(node.type, list) else [ node.type ]
-            self.query += '({}),\n'.format(
+            self.query.append(('({}),\n'.format(
                 ' ; '.join(
                     [ '{} = "{}"'.format(tlabel, x) for x in type_cons ]
                 )
-            )
+            ), 1))
         
         if node.label is not None and node.label not in self.labels: 
             self.labels.append(node.label)
-            self.query += S['/select_node.dl'](node)
-            self.set_output(
-                'source_text_{}'.format(node.label),
-                'start_line_{}'.format(node.label),
-                'start_col_{}'.format(node.label),
-                'end_line_{}'.format(node.label),
-                'end_col_{}'.format(node.label),
-                'gid_{}'.format(node.label)
-            )
+            text, _, cost = S['/select_node.dl'](node)
+            self.query.append((text, cost))
+            if node.selects != [ 'gid' ]:
+                self.set_output(
+                    'source_text_{}'.format(node.label),
+                    'start_line_{}'.format(node.label),
+                    'start_col_{}'.format(node.label),
+                    'end_line_{}'.format(node.label),
+                    'end_col_{}'.format(node.label),
+                    'gid_{}'.format(node.label)
+                )
+            else:
+                self.set_output('gid_{}'.format(node.label))
         elif node.type is not None and node.label not in self.labels:
-            self.query += S['/node.dl'](node)
+            text, _, cost = S['/node.dl'](node)
+            self.query.append((text, cost))
+        
+        if node.type == '$literal':
+            tlabel = 'type_{}'.format(node.id if node.label is None else node.label)
+            self.query.append((str(
+                Relation(self, "literal_types").args(tlabel)
+            ) + ',\n', 2))
 
         if node.type == '$use':
-            self.query += S['/modifiers/use.dl'](node)
+            text, _, cost = S['/modifiers/use.dl'](node)
+            self.query.append((text, cost)) 
         if node.type == "$df":
-            self.query += S['/modifiers/df.dl'](node)
+            text, outputs, cost = S['/modifiers/df.dl'](node)
+            self.query.append((text, cost))
+            self.set_output(outputs["to"])
+            self.set_output(outputs["edge"])
         if node.has_mod(CBCallTarget):
-            self.query += S['/modifiers/call_target.dl'](node)
+            text, _, cost = S['/modifiers/call_target.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBModuleRoot):
-            self.query += S['/modifiers/module_root.dl'](node)
+            text, _, cost = S['/modifiers/module_root.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBAnyParentIs):
-            self.query += S['/modifiers/any_parent.dl'](node)
+            text, _, cost = S['/modifiers/any_parent.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBAnyChildIs):
-            self.query += S['/modifiers/any_child.dl'](node)
+            text, _, cost = S['/modifiers/any_child.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBRhs):
-            self.query += S['/modifiers/the_rhs.dl'](node)
+            text, _, cost = S['/modifiers/the_rhs.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBLhs):
-            self.query += S['/modifiers/the_lhs.dl'](node)
+            text, _, cost = S['/modifiers/the_lhs.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBObjectIs):
-            self.query += S['/modifiers/the_object.dl'](node)
+            text, _, cost = S['/modifiers/the_object.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBAttributeIs):
-            self.query += S['/modifiers/the_attribute.dl'](node)
+            text, _, cost = S['/modifiers/the_attribute.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBSubscriptIs):
-            self.query += S['/modifiers/the_subscript.dl'](node)
+            text, _, cost = S['/modifiers/the_subscript.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBOnlySubscriptIs):
-            self.query += S['/modifiers/the_only_subscript.dl'](node)
+            text, _, cost = S['/modifiers/the_only_subscript.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBValueIs):
-            self.query += S['/modifiers/the_value.dl'](node)
+            text, _, cost = S['/modifiers/the_value.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBChildIs):
-            self.query += S['/modifiers/child.dl'](node)
+            text, _, cost = S['/modifiers/child.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBFirstChildIs):
-            self.query += S['/modifiers/first_child.dl'](node)
+            text, _, cost = S['/modifiers/first_child.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBSecondChildIs):
-            self.query += S['/modifiers/second_child.dl'](node)
+            text, _, cost = S['/modifiers/second_child.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBThirdChildIs):
-            self.query += S['/modifiers/third_child.dl'](node)
+            text, _, cost = S['/modifiers/third_child.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBNoThirdChild):
-            self.query += S['/modifiers/no_third_child.dl'](node)
+            text, _, cost = S['/modifiers/no_third_child.dl'](node)
+            self.query.append((text, cost))
+        if node.has_mod(CBFirstArgIs):
+            text, _, cost = S['/modifiers/first_arg.dl'](node)
+            self.query.append((text, cost))
+        if node.has_mod(CBSecondArgIs):
+            text, _, cost = S['/modifiers/second_arg.dl'](node)
+            self.query.append((text, cost))
+        if node.has_mod(CBAnyArgIs):
+            text, _, cost = S['/modifiers/any_arg.dl'](node)
+            self.query.append((text, cost))
         
         # If we have a constraint on text, add that
         con = node.get_con(CBText)
         if con is not None:
-            text, outputs = S['/constraints/text.dl'](node)
-            self.query += text + str(
+            text, outputs, cost = S['/constraints/text.dl'](node)
+            self.query.append((text, cost))
+            self.query.append((str(
                 Relation(self, "$eq").args(outputs['text'], '"{}"'.format(con.value))
-            ) + ',\n'
+            ) + ',\n', 1))
             self.pre_filter_words.append(con.value)
 
         # If we have the same text as some other part of the query,
         # enforce that constraint
         con = node.get_con(CBSameText)
         if con is not None:
-            text, outputs = S['/constraints/text.dl'](node)
-            self.query += text + str(
+            text, outputs, cost = S['/constraints/text.dl'](node)
+            self.query.append((text, cost))
+            self.query.append((str(
                 Relation(self, "$eq").args(outputs['text'], 'source_text_{}'.format(con.value))
-            ) + ',\n'
+            ) + ',\n', 1))
         
         # If we have a constraint on name, add that 
         con = node.get_con(CBName)
         if con is not None:
             if name_var is None:
-                text, outputs = S['/constraints/name.dl'](node)
+                text, outputs, cost = S['/constraints/name.dl'](node)
                 name_var = outputs['name']
-                self.query += text
-            self.query += str(
+                self.query.append((text, cost))
+            self.query.append((str(
                 Relation(self, '$eq').args(name_var, '"{}"'.format(con.value))
-            ) + ',\n'
+            ) + ',\n', 1))
             self.pre_filter_words.append(con.value)
 
         # If we have a constraint on ids, add that 
         con = node.get_con(CBFromSet)
         if con is not None:
-            glabel = 'gid_{}'.format(node.id if node.label is None else node.label)
-            self.inputs += ".decl input_" + str(node.id) + '(gid:Gid)\n' + \
-                ".input input_" + str(node.id) + \
+            con.write_file(self.inid)
+            glabel = 'fpath, gid_{}'.format(node.id if node.label is None else node.label)
+            self.inputs += ".decl input_" + str(self.inid) + '(fpath:symbol, gid:Gid)\n' + \
+                ".input input_" + str(self.inid) + \
                 '(IO=file, filename="{}", delimiter="\\t")\n\n'.format(con.file)
-            self.query += str(
-                Relation(self, 'input_' + str(node.id)).args(glabel)
-            ) + ',\n'
+            self.query.append((str(
+                Relation(self, 'input_' + str(self.inid)).args(glabel)
+            ) + ',\n', len(con.frame) / 1000))
+            self.inid += 1
+            # Maybe constrain to the files that had these GIDs
+            if con.files_constraint is not None:
+                self.files_prefilters.append({
+                    f.replace('/cb-target/', self.dataset + '/processed/') for f in con.files_constraint
+                })
+
+        # If we have a constraint on child count, add that 
+        con = node.get_con(CBExactlyTwoChildren)
+        if con is not None:
+            text, _, cost = S['/constraints/exactly_two_children.dl'](node)
+            self.query.append((text, cost))
+
+        # If we have a constraint on normal arg count, add that 
+        con = node.get_con(CBExactlyTwoNormalArgs)
+        if con is not None:
+            text, _, cost = S['/constraints/exactly_two_normal_args.dl'](node)
+            self.query.append((text, cost))
 
         # If we have a constraint on child type, add that 
         con = node.get_con(CBEveryChildHasType)
         if con is not None:
-            text, outputs = S['/constraints/every_child_has_type.dl'](node)
+            text, outputs, cost = S['/constraints/every_child_has_type.dl'](node)
             child_type_var = outputs['child_type']
-            self.query += text
+            self.query.append((text, cost))
             tlabel = 'type_{}'.format(node.id if node.label is None else node.label)
-            self.query += str(
+            self.query.append((str(
                 Relation(self, '$eq').args(child_type_var, '"{}"'.format(con.value))
-            ) + ',\n'
+            ) + ',\n', 1))
 
 

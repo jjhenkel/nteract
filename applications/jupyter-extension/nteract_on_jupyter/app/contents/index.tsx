@@ -28,6 +28,7 @@ import { HotKeys, KeyMap } from "react-hotkeys";
 import { connect } from "react-redux";
 import { Dispatch } from "redux";
 import urljoin from "url-join";
+import { Graphviz } from 'graphviz-react';
 
 // Local modules
 import { ConnectedDirectory } from "./directory";
@@ -181,28 +182,32 @@ class Contents extends React.PureComponent<ContentsProps, IContentsState> {
                     <File contentRef={contentRef} appBase={appBase} />
                   </div>
                   <div style={{ minWidth: '40%', borderLeft: '3px solid #22a6f1' }}>
-                    <MonacoEditor
-                      id="code-results-display-pane"
-                      contentRef='e169379a-32ce-452d-b821-f76f8d61dd2d'
-                      theme="vscode"
-                      onDidCreateEditor={onDidCreateEditor}
-                      onChange={onEditorChange}
-                      options={{
-                        lineNumbers: true,
-                        automaticLayout:true,
-                        fixedOverflowWidgets:true,
-                        // minimap: {
-                        //   enabled: true,
-                        //   side: 'right',
-                        //   size: 'proportional'
-                        // },
-                        scrollbar: {
-                          alwaysConsumeMouseWheel: false
-                        }
-                      }}
-                      language={viewerLanguage}
-                      value={viewerContents}
-                    />
+                    {(viewerLanguage == "graphviz") ? (
+                      <Graphviz dot={viewerContents} options={{ fit:true, width: '100%', height: '100%', zoom: false }} />
+                    ) : (
+                      <MonacoEditor
+                        id="code-results-display-pane"
+                        contentRef='e169379a-32ce-452d-b821-f76f8d61dd2d'
+                        theme="vscode"
+                        onDidCreateEditor={onDidCreateEditor}
+                        onChange={onEditorChange}
+                        options={{
+                          lineNumbers: true,
+                          automaticLayout:true,
+                          fixedOverflowWidgets:true,
+                          // minimap: {
+                          //   enabled: true,
+                          //   side: 'right',
+                          //   size: 'proportional'
+                          // },
+                          scrollbar: {
+                            alwaysConsumeMouseWheel: false
+                          }
+                        }}
+                        language={viewerLanguage}
+                        value={viewerContents}
+                      />
+                    )}
                   </div>
                   <div style={{ minWidth: '10%', borderLeft: '1px solid #22a6f1' }} className={"treePanel"}>
                     <Tree
@@ -248,7 +253,7 @@ const makeMapStateToProps: any = (
   const mapStateToProps = (state: AppState): Partial<ContentsProps> => {
     const contentRef: ContentRef = initialProps.contentRef;
     
-    let viewerContents = 'No results.';
+    let viewerContents = (window as any).sidePanelDot || 'No contents.';
     let viewerLanguage = (window as any).sidePanelLanguage || 'txt';
     let treeViewContents = (window as any).sidePanelResults || [
       {

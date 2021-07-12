@@ -20,8 +20,12 @@ class Utils:
     @staticmethod
     def source_list_to_py_list(df, col):
         def _to_py_list(x):
-            clean = x.replace('\\n', '').replace('\\t', ' ')
-            return eval(clean)
+            try:
+                clean = str(x).replace('\\\n', '') # Line continuation
+                clean = clean.replace('\\n', '').replace('\\t', ' ')
+                return eval(clean)
+            except:
+                return ["???"]
 
         return ('[' + df[col].str.strip('[]') + ']').apply(
             _to_py_list
@@ -48,9 +52,7 @@ def imports(*args):
 
 
 def literal(*args):
-    return CB([
-        'string', 'true', 'false', 'none', 'integer', 'float'
-    ]).with_constraints(*args)
+    return CB('$literal').with_constraints(*args)
 
 
 def comparison(*args):
@@ -71,6 +73,14 @@ def param(*args):
 
 def call(*args):
     return CB('call').with_constraints(*args)
+
+
+def float_(*args):
+    return CB('float').with_constraints(*args)
+
+
+def keyword_argument(*args):
+    return CB('keyword_argument').with_constraints(*args)
 
 
 def string(*args):
@@ -166,6 +176,10 @@ def with_text(text):
     return CBText(text)
 
 
+def with_exactly_two_children():
+    return CBExactlyTwoChildren()
+
+
 def where_every_child_has_type(the_type):
     return CBEveryChildHasType(the_type)
 
@@ -174,8 +188,15 @@ def same_text_as(target):
     return CBSameText(target)
 
 
-def from_set(series):
-    return CBFromSet(list(series.values))
+def from_set_old(series):
+    return CBFromSet(set(series.values))
+
+
+def from_set(frame, col):
+    inframe = pd.DataFrame()
+    inframe['fpath'] = frame['fpath']
+    inframe['gid'] = frame[col]
+    return CBFromSet(inframe, files=set(frame.fpath.unique()))
 
 
 ###############################################################################
@@ -203,6 +224,14 @@ def module_name():
 
 def imported_name():
     return CB().with_mods(CBImportedName())
+
+
+def the_first_arg():
+    return CB().with_mods(CBFirstArgIs())
+
+
+def the_second_arg():
+    return CB().with_mods(CBSecondArgIs())
 
 
 def the_first_child():
@@ -297,6 +326,14 @@ def the_value_is(subq):
 
 def the_subscript_is(subq):
     return the_subscript().merge(subq)
+
+
+def the_first_arg_is(subq):
+    return the_first_arg().merge(subq)
+
+
+def the_second_arg_is(subq):
+    return the_second_arg().merge(subq)
 
 
 def the_only_subscript_is(subq):
@@ -407,14 +444,16 @@ select = lambda *s: CBSelect(*s)
 select_as = lambda x,y: CBSelect(x, asname=y)
 
 # TODO: fornow
-def execute(x, compile=False, debug=False):
+def execute(x, compile=False, debug=False, prefilter_files=None):
     return Evaluator(
-        x, should_debug=debug
+        x, should_debug=debug, prefilter_files=prefilter_files
     ).eval(compile=compile)
 
-def execute_union(*qs, compile=False):
+def execute_union(*qs, compile=False, prefilter_files=None):
     return pd.concat(
-        Evaluator(x).eval(compile=compile) for x in qs 
+        Evaluator(x).eval(
+            compile=compile, prefilter_files=prefilter_files
+        ) for x in qs 
     )
 
 def visualize(data, focus):
@@ -449,3 +488,55 @@ def visualize(data, focus):
     display.display({
         'application/code-book-matches+json': { 'results': [reformated], 'lang': 'python' }
     }, raw=True)
+
+
+def show_dot(dot):
+    from IPython import display
+
+    display.display({
+        'application/code-book-matches+json': { 'dot': dot, 'lang': 'graphviz' }
+    }, raw=True)
+
+
+def showgid(gid):
+    visualize(execute(anything(from_set(pd.Series([gid, -gid]))) % 'targ'), 'targ')
+
+
+###############################################################################
+# MISC / PRE-Made queries
+###############################################################################
+
+
+class Queries:
+    @staticmethod
+    def qualified_call(i,c): 
+        return execute(
+            call(with_name(c)) % 'call'
+            |where| call_target()
+                |isa| use_of(imports(with_name(i))),
+            compile=True
+        ).assign(call_type=c, import_type=i) 
+
+    @staticmethod
+    def qualified_calls(i, cs): 
+        temp1 = execute(
+            imports(with_name(i)) % 'import',
+            compile=True
+        )
+
+        temp2 = execute(
+            use_of(imports(from_set(temp1, 'gid_import'))) % 'use',
+            compile=True
+        )
+
+        qc = lambda c: execute(
+            call(with_name(c)) % 'call'
+            |where| call_target() |is_| anything(from_set(temp2, 'gid_use')),
+            compile=True
+        ).assign(call_type=c, import_type=i) 
+
+        return pd.concat([
+           qc(c) for c in cs
+        ])
+
+

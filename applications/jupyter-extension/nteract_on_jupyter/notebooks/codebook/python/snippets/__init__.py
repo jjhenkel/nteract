@@ -12,30 +12,38 @@ _SNIPPETS_GLOB = os.path.join(
 )
 
 _SNIPPETS_FILES = {}
-_SNR_IDX = 1
 
 SNIPPETS = {}
 
 
+def refresh_snippet_offsets():
+    for snippet in SNIPPETS.values():
+        snippet.reset_offset()
+
+
 class SnippetFunc:
-    def __init__(self, snippet_template, childtype):
+    def __init__(self, snippet_template, childtype, snoffset, cost):
         self.template = snippet_template
         self.childtype = childtype
+        self.snoffset = snoffset
+        self.orig_offset = snoffset
+        self.cost = cost
     
-    def process_template(self, node, template, inputs):
-        global _SNR_IDX
+    def reset_offset(self):
+        self.snoffset = self.orig_offset
 
+    def process_template(self, node, template, inputs):
         nid = node.id if node.label is None else node.label
 
         replacements = {
-            'rand(1)': 'r{}'.format(_SNR_IDX + 1),
-            'rand(2)': 'r{}'.format(_SNR_IDX + 2),
-            'rand(3)': 'r{}'.format(_SNR_IDX + 3),
-            'rand(4)': 'r{}'.format(_SNR_IDX + 4),
-            'rand(5)': 'r{}'.format(_SNR_IDX + 5),
-            'rand(6)': 'r{}'.format(_SNR_IDX + 6),
-            'rand(7)': 'r{}'.format(_SNR_IDX + 7),
-            'rand(8)': 'r{}'.format(_SNR_IDX + 8),
+            'rand(1)': 'r{}'.format(self.snoffset + 1),
+            'rand(2)': 'r{}'.format(self.snoffset + 2),
+            'rand(3)': 'r{}'.format(self.snoffset + 3),
+            'rand(4)': 'r{}'.format(self.snoffset + 4),
+            'rand(5)': 'r{}'.format(self.snoffset + 5),
+            'rand(6)': 'r{}'.format(self.snoffset + 6),
+            'rand(7)': 'r{}'.format(self.snoffset + 7),
+            'rand(8)': 'r{}'.format(self.snoffset + 8),
             'fid()': 'fid',
             'fpath()': 'fpath',
             'type()': 'type_{}'.format(nid),
@@ -46,13 +54,15 @@ class SnippetFunc:
             'sc()': 'start_col_{}'.format(nid),
             'er()': 'end_line_{}'.format(nid),
             'ec()': 'end_col_{}'.format(nid),
+            'output("to")': 'out_to_{}'.format(nid),
+            'output("edge")': 'out_edge_{}'.format(nid),
             'output("text")': 'out_text_{}'.format(nid),
             'output("name")': 'out_name_{}'.format(nid),
             'output("module_name")': 'out_module_name_{}'.format(nid),
             'output("child_type")': 'out_child_type_{}'.format(nid)
         }
 
-        _SNR_IDX += 16
+        self.snoffset += 16
         outputs = {}
 
         if node.parent is not None:
@@ -80,10 +90,10 @@ class SnippetFunc:
                 cleaned_2 = cleaned.replace('output(', '')[1:-2]
                 outputs[cleaned_2] = replacements[cleaned]
         
-        template = template.strip() + ',\n'
+        template = template.strip() + ',\n' 
         if len(outputs.items()) > 0:
-            return template, outputs
-        return template
+            return template, outputs, self.cost
+        return template, {}, self.cost
     
     def __call__(self, node, **inputs):
         target = node if self.childtype == False else node.children[0]
@@ -112,15 +122,17 @@ for file in glob.glob(_SNIPPETS_GLOB, recursive=True):
     
     SNIPPETS['/prelude.dl'] = lambda: _SNIPPETS_FILES['/prelude.dl']
 
+snoffset = 0
 for key, template in _SNIPPETS_FILES.items():
     rules_by_type = {}
-
+    snoffset += 1000
     line_idx = 0
     choices = None
     childtype = False
     segment = ''
     in_comment = False
     paren_tempo = 0
+    cost = 100
     template_lines = template.split('\n')
     while line_idx < len(template_lines):
         # Fetch line
@@ -139,24 +151,30 @@ for key, template in _SNIPPETS_FILES.items():
 
         # Check for '<<$type' directives
         if len(line) > 7 and line[:7] == '<<$type':
+            assert 'cost:=' in line
             choices = line.replace(
                 '<<$type', ''
             ).replace('$>>', '').replace('(', '')
             paren_tempo += 1
-            choices = json.loads(choices.strip())
+            cost = int(choices.split('cost:=')[1].strip())
+            choices = json.loads(choices.split('cost:=')[0].strip())
             segment = '(\n'
             continue
         elif len(line) > 12 and line[:12] == '<<$childtype':
+            assert 'cost:=' in line
             choices = line.replace(
                 '<<$childtype', ''
             ).replace('$>>', '').replace('(', '')
             paren_tempo += 1
-            choices = json.loads(choices.strip())
+            cost = int(choices.split('cost:=')[1].strip())
+            choices = json.loads(choices.split('cost:=')[0].strip())
             segment = '(\n'
             childtype = True
             continue
 
-        if paren_tempo == 0 and line == '(':
+        if paren_tempo == 0 and line.strip()[0] == '(':
+            assert 'cost:=' in line
+            cost = int(line.split('cost:=')[1].strip())
             segment = '(\n'
             paren_tempo = 1
         elif paren_tempo > 0:
@@ -176,4 +194,4 @@ for key, template in _SNIPPETS_FILES.items():
             paren_tempo = 0
             segment = ''
         
-    SNIPPETS[key] = SnippetFunc(rules_by_type, childtype)
+    SNIPPETS[key] = SnippetFunc(rules_by_type, childtype, snoffset, cost)

@@ -1,8 +1,6 @@
 
 /* SNIPPET: [modifiers] every_child_has_type.dl */
-(
+( cost:=5
     /* Assert that we have only a singular type for all of our children */
-    child_types_count(nid_columns, 1),
-    /* And that type matches <child_type> */
-    child_types(nid_columns, {{output("child_type")}})
+    all_children_type_x({{fid()}}, {{nid()}}, {{output("child_type")}})
 )

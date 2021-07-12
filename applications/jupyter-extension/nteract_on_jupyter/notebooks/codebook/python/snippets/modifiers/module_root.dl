@@ -1,6 +1,6 @@
 
 /* SNIPPET: [modifiers] module_root.dl */
-(
+( cost:=15
     /* We are an identifier */
     {{type()}} = "identifier",
     /* That is the first child of */

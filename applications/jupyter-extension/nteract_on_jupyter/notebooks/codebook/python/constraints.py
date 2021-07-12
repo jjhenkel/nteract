@@ -34,6 +34,34 @@ class CBSameText:
         return CBSameText._kind
 
 
+class CBExactlyTwoChildren:
+    _kind = 'Python.Constraints.ExactlyTwoChildren'
+
+    def __init__(self):
+        self.kind = CBExactlyTwoChildren._kind
+
+    def __str__(self):
+        return 'child_count=2'
+
+    @staticmethod
+    def kind():
+        return CBExactlyTwoChildren._kind
+
+
+class CBExactlyTwoNormalArgs:
+    _kind = 'Python.Constraints.ExactlyTwoNormalArgs'
+
+    def __init__(self):
+        self.kind = CBExactlyTwoNormalArgs._kind
+
+    def __str__(self):
+        return 'normal_args=2'
+
+    @staticmethod
+    def kind():
+        return CBExactlyTwoNormalArgs._kind
+
+
 class CBEveryChildHasType:
     _kind = 'Python.Constraints.EveryChildHasType'
 
@@ -85,16 +113,6 @@ class CBFieldIndex:
         else:
             assert False
 
-    def to_path(self, path):
-        if self.field is not None and self.index is not None:
-            return '{}.f_{}[{}]'.format(path, self.field, self.index)
-        elif self.field is not None:
-            return '{}.f_{}'.format(path, self.field)
-        elif self.index is not None:
-            return '{}[{}]'.format(path, self.index)
-        else:
-            assert False
-
     @staticmethod
     def kind():
         return CBFieldIndex._kind
@@ -115,12 +133,6 @@ class CBStepsAway:
         else:
             return '$steps_away{{{}{}}}'.format(self.op, self.steps)
 
-    def to_path(self, path):
-        return path + (
-            '{}' if self.op is None 
-            else '{{{}{}}}'.format(self.op, self.steps)
-        )
-
     @staticmethod
     def kind():
         return CBStepsAway._kind
@@ -140,9 +152,6 @@ class CBAllowCastsAndParens:
         else:
             return '$allow_casts_and_parens[<={}]'.format(self.max_depth)
 
-    def to_path(self, path):
-        return '(' + path + ')'
-
     @staticmethod
     def kind():
         return CBAllowCastsAndParens._kind
@@ -150,19 +159,20 @@ class CBAllowCastsAndParens:
 
 
 class CBFromSet:
-    _fidx = 1
     _kind = 'Python.Constraints.FromSet'
 
-    def __init__(self, value):
+    def __init__(self, frame, files=None):
         self.kind = CBFromSet._kind
-        self.value = value
-        self.file = '/app/inputs-{}.csv'.format(CBFromSet._fidx)
-        with open(self.file, 'w') as fh:
-            fh.write('\n'.join(map(str, self.value)))
-        CBFromSet._fidx += 1
+        self.frame = frame
+        self.file = None
+        self.files_constraint = files
 
     def __str__(self):
         return '$from_set'
+
+    def write_file(self, idx):
+        self.file = '/tmp/query-inputs/inputs-{}.csv'.format(idx)
+        self.frame.to_csv(self.file, index=False, header=False, sep='\t')
 
     @staticmethod
     def kind():

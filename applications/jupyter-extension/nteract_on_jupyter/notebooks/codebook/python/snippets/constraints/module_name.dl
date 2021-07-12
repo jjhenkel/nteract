@@ -1,23 +1,23 @@
 
 /* SNIPPET: [modifiers] module_root.dl */
-(
-    debug_text({{rand(1)}}, _, _, _, _, {{output("module_name")}}),
-    node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, "dotted_name", _, _, _, _),
-    /* Something that is the 'name' child of */
-    child_of({{fid()}}, {{rand(2)}}, _, "name", {{rand(3)}}),
-    /* Something that is the 'name' child of us */
-    child_of({{fid()}}, {{rand(3)}}, _, "name", {{nid()}})
-    /*  ^ This covers `import pandas.blah as ...` */
-; /* OR */
-    debug_text({{rand(1)}}, _, _, _, _, {{output("module_name")}}),
-    node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, "dotted_name", _, _, _, _),
-    /* Something that is the 'name' child of us */
-    child_of({{fid()}}, {{rand(2)}}, _, "name", {{nid()}})
-    /*  ^ This covers `import pandas.blah` */
-; /* OR */
-    debug_text({{rand(1)}}, _, _, _, _, {{output("module_name")}}),
-    node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, "dotted_name", _, _, _, _),
-    /* Something that is the 'module_name' child of us */
-    child_of({{fid()}}, {{rand(2)}}, _, "module_name", {{nid()}})
-    /*  ^ This covers `from pandas.blah import ...` */
+( cost:=10
+    ( 
+        /* Something that is the 'name' child of */
+        child_of({{fid()}}, {{rand(2)}}, _, "name", {{rand(3)}}),
+        /* Something that is the 'name' child of us */
+        child_of({{fid()}}, {{rand(3)}}, _, "name", {{nid()}}),
+        node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, "dotted_name", _, _, _, _)
+        /*  ^ This covers `import pandas.blah as ...` */
+    ; /* OR */
+        /* Something that is the 'name' child of us */
+        child_of({{fid()}}, {{rand(2)}}, _, "name", {{nid()}}),
+        node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, "dotted_name", _, _, _, _)
+        /*  ^ This covers `import pandas.blah` */
+    ; /* OR */
+        /* Something that is the 'module_name' child of us */
+        child_of({{fid()}}, {{rand(2)}}, _, "module_name", {{nid()}}),
+        node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, "dotted_name", _, _, _, _)
+        /*  ^ This covers `from pandas.blah import ...` */
+    ),
+    debug_text({{rand(1)}}, _, _, _, _, {{output("module_name")}})
 )

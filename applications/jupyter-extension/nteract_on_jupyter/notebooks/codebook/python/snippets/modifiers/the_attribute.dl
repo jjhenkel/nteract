@@ -1,5 +1,5 @@
 
 /* SNIPPET: [modifiers] the_attribute.dl */ 
-(
+( cost:=5
     child_of({{fid()}}, {{nid()}}, _, "attribute", {{nid(parent)}})
 )

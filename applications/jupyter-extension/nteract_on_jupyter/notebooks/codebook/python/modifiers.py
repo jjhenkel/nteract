@@ -41,6 +41,34 @@ class CBValueIs:
         return CBValueIs._kind
 
 
+class CBFirstArgIs:
+    _kind = 'Python.Mods.FirstArgIs'
+    
+    def __init__(self):
+        self.kind = CBFirstArgIs._kind
+
+    def __str__(self):
+        return '$first_arg'
+
+    @staticmethod
+    def kind():
+        return CBFirstArgIs._kind
+
+
+class CBSecondArgIs:
+    _kind = 'Python.Mods.SecondArgIs'
+    
+    def __init__(self):
+        self.kind = CBSecondArgIs._kind
+
+    def __str__(self):
+        return '$second_arg'
+
+    @staticmethod
+    def kind():
+        return CBSecondArgIs._kind
+
+
 class CBSubscriptIs:
     _kind = 'Python.Mods.SubscriptIs'
     

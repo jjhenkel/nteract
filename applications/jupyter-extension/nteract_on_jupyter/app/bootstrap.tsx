@@ -80,12 +80,35 @@ export async function main(
     }, {});
   };
   
+  const ShowDotTransform = (data: any) => {
+    console.log('In: ShowDotTransform');
+    (window as any).sidePanelResults = [{
+      hasCaret: false,
+      isExpanded: true,
+      label: 'Graph (Dot)',
+      id: 1,
+      nodeData: { onClick: () => null },
+      childNodes: []
+    }];
+
+    (window as any).sidePanelLanguage = data.data['lang'];
+    (window as any).sidePanelDot = data.data['dot'];
+
+    return null;
+  };
+  
   const PrintTransform = (data: any) => {
+    console.log('In: PrintTransform');
+    console.log((data.data['results'] || []).length);
     (window as any).sidePanelResults = [];
     (window as any).sidePanelLanguage = data.data['lang'];
     let resCount = 0;
     let tid = 0;
-    let results = data.data['results'];
+    let results = data.data['results'] || [];
+
+    if (results !== []) {
+      (window as any).sidePanelDot = null;
+    }
 
     for (let i = 0; i < results.length; i++) {
       if (results[i]['$match'] && results[i]['$match'].length > 0) {
@@ -260,6 +283,7 @@ export async function main(
         transforms: makeTransformsRecord({
           displayOrder: Immutable.List([
             "application/code-book-matches+json",
+            "application/code-book-dot+json",
             "application/vnd.jupyter.widget-view+json",
             "application/vnd.vega.v5+json",
             "application/vnd.vega.v4+json",
@@ -287,6 +311,7 @@ export async function main(
           ]),
           byId: Immutable.Map({
             "application/code-book-matches+json": PrintTransform,
+            "application/code-book-dot+json": ShowDotTransform,
             "text/vnd.plotly.v1+html": NullTransform,
             "application/vnd.plotly.v1+json": NullTransform,
             "application/geo+json": NullTransform,

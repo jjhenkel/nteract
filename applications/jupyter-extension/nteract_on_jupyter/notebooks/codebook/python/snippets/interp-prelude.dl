@@ -16,7 +16,7 @@
     fid:Fid, child:Nid, index:number, field:FieldName, parent:Nid
 )
 .input child_of(
-    IO=files,
+    IO=file,
     filename="child_of.csv.gz",
     delimiter="\t"
 )
@@ -27,21 +27,21 @@
     sb:ByteOffset, eb:ByteOffset
 )
 .input node_info(
-    IO=files,
+    IO=file,
     filename="node_info.csv.gz",
     delimiter="\t"
 )
 
 .decl debug_text(gid:Gid, sl:number, sc:number, el:number, ec:number, text:SourceText)
 .input debug_text(
-    IO=files,
+    IO=file,
     filename="debug_text.csv.gz",
     delimiter="\t"
 )
 
 .decl file_info(fid:Fid, path:symbol)
 .input file_info(
-    IO=files,
+    IO=file,
     filename="file_info.csv.gz",
     delimiter="\t"
 )
@@ -56,7 +56,7 @@
     edge_target: FlowTarget
 )
 .input dflow(
-    IO=files,
+    IO=file,
     filename="dflow.csv.gz",
     delimiter="\t"
 )
@@ -71,70 +71,70 @@
     edge_target: FlowTarget
 )
 .input flow(
-    IO=files,
+    IO=file,
     filename="flow.csv.gz",
     delimiter="\t"
 )
 
 .decl encloses(parent:Gid, child:Gid)
 .input encloses(
-    IO=files,
+    IO=file,
     filename="encloses.csv.gz",
     delimiter="\t"
 )
 
 .decl node_type(gid:Gid, type:TypeName)
 .input node_type(
-    IO=files,
+    IO=file,
     filename="node_type.csv.gz",
     delimiter="\t"
 )
 
 .decl name_of_def(def_gid:Gid, name:symbol)
 .input name_of_def(
-    IO=files,
+    IO=file,
     filename="name_of_def.csv.gz",
     delimiter="\t"
 )
 
 .decl name_of_ref(ref_gid:Gid, name:symbol)
 .input name_of_ref(
-    IO=files,
+    IO=file,
     filename="name_of_ref.csv.gz",
     delimiter="\t"
 )
 
 .decl dataflow(from:Gid, to:Gid, kind:symbol)
 .input dataflow(
-  IO=files,
+  IO=file,
   filename="dataflow.csv.gz",
   delimiter="\t"
 )
 
 .decl tdataflow(from:Gid, to:Gid)
 .input tdataflow(
-  IO=files,
+  IO=file,
   filename="tdataflow.csv.gz",
   delimiter="\t"
 )
 
 .decl child_types(parent:Nid, type:TypeName)
 .input child_types(
-  IO=files,
+  IO=file,
   filename="child_types.csv.gz",
   delimiter="\t"
 )
 
 .decl child_types_count(parent:Nid, c:number)
 .input child_types_count(
-  IO=files,
+  IO=file,
   filename="child_types_count.csv.gz",
   delimiter="\t"
 )
  
 .decl child_count(parent:Nid, c:number)
 .input child_count(
-  IO=files,
+  IO=file,
   filename="child_count.csv.gz",
   delimiter="\t"
 )

@@ -1,0 +1,43 @@
+
+
+.decl child_types_2(fid:Fid, parent:Nid, type:TypeName)
+child_types_2(fid, parent, type) :-
+  child_of(fid, x, _, _, parent),
+  node_info(fid, x, _, type, _, _, _, _)
+.
+
+.decl literal_types(type:TypeName)
+literal_types("string").
+literal_types("none").
+literal_types("true").
+literal_types("false").
+literal_types("integer").
+literal_types("float").
+
+.decl non_normal_arg_type(type:TypeName)
+non_normal_arg_type("keyword_argument").
+non_normal_arg_type("list_splat").
+non_normal_arg_type("dictionary_splat").
+ 
+.decl normal_args_count(call:Nid, c:number)
+normal_args_count(call, c) :-
+  child_of(fid, args, _, "arguments", call),
+  c = count : { 
+      child_of(fid, nid, _, _, args),
+      node_info(fid, nid, _, type, _, _, _, _),
+      !non_normal_arg_type(type)
+  }
+.
+
+.decl all_children_type_x(fid:Fid, parent:Nid, x:TypeName)
+all_children_type_x(fid, parent, x) :-
+  child_types_2(fid, parent, x),
+  C1 = count : { 
+      child_of(fid, _, _, _, parent)
+  },
+  C2 = count : { 
+      child_of(fid, nid, _, _, parent),
+      node_info(fid, nid, _, x, _, _, _, _) 
+  },
+  C1 = C2
+.
