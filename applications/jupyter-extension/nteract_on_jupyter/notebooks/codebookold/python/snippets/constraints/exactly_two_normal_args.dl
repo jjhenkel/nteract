@@ -1,0 +1,5 @@
+
+/* SNIPPET: [modifiers] exactly_two_normal_args.dl */
+( cost:=5
+    normal_args_count({{fid()}}, {{nid()}}, 2)
+)

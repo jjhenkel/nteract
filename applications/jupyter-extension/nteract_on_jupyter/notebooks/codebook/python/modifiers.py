@@ -27,6 +27,34 @@ class CBLhs:
         return CBLhs._kind
 
 
+class CBSecondSubscriptIs:
+    _kind = 'Python.Mods.SecondSubscriptIs'
+    
+    def __init__(self):
+        self.kind = CBSecondSubscriptIs._kind
+
+    def __str__(self):
+        return '$second_subscript_is'
+
+    @staticmethod
+    def kind():
+        return CBSecondSubscriptIs._kind
+
+
+class CBFirstSubscriptIs:
+    _kind = 'Python.Mods.FirstSubscriptIs'
+    
+    def __init__(self):
+        self.kind = CBFirstSubscriptIs._kind
+
+    def __str__(self):
+        return '$first_subscript_is'
+
+    @staticmethod
+    def kind():
+        return CBFirstSubscriptIs._kind
+
+
 class CBValueIs:
     _kind = 'Python.Mods.ValueIs'
     
@@ -39,6 +67,62 @@ class CBValueIs:
     @staticmethod
     def kind():
         return CBValueIs._kind
+
+
+class CBBodyIs:
+    _kind = 'Python.Mods.BodyIs'
+    
+    def __init__(self):
+        self.kind = CBBodyIs._kind
+
+    def __str__(self):
+        return '$body_is'
+
+    @staticmethod
+    def kind():
+        return CBBodyIs._kind
+
+
+class CBFunctionIs:
+    _kind = 'Python.Mods.FunctionIs'
+    
+    def __init__(self):
+        self.kind = CBFunctionIs._kind
+
+    def __str__(self):
+        return '$function_is'
+
+    @staticmethod
+    def kind():
+        return CBFunctionIs._kind
+
+
+class CBOnlyLambdaParamIs:
+    _kind = 'Python.Mods.OnlyLambdaParamIs'
+    
+    def __init__(self):
+        self.kind = CBOnlyLambdaParamIs._kind
+
+    def __str__(self):
+        return '$only_lambda_param_is'
+
+    @staticmethod
+    def kind():
+        return CBOnlyLambdaParamIs._kind
+
+
+class CBNameIs:
+    _kind = 'Python.Mods.NameIs'
+    
+    def __init__(self):
+        self.kind = CBNameIs._kind
+
+    def __str__(self):
+        return '$name_is'
+
+    @staticmethod
+    def kind():
+        return CBNameIs._kind
 
 
 class CBFirstArgIs:
@@ -221,6 +305,20 @@ class CBAnyChildIs:
     @staticmethod
     def kind():
         return CBAnyChildIs._kind
+
+
+class CBParentIs:
+    _kind = 'Python.Mods.ParentIs'
+    
+    def __init__(self):
+        self.kind = CBParentIs._kind
+
+    def __str__(self):
+        return '$parent'
+
+    @staticmethod
+    def kind():
+        return CBParentIs._kind
 
 
 class CBChildIs:

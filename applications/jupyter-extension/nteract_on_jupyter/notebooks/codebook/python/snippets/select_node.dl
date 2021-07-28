@@ -1,4 +1,3 @@
-( cost:=15
-    node_info({{fid()}}, {{nid()}}, {{gid()}}, {{type()}}, _, _, _, _),
-    debug_text({{gid()}}, {{sr()}}, {{sc()}}, {{er()}}, {{ec()}}, {{text()}})
+( cost:=5
+    node_info({{fid()}}, {{gid()}}, {{type()}}, _, _, _, {{sr()}}, {{sc()}}, {{er()}}, {{ec()}}, {{text()}})
 )

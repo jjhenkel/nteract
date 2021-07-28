@@ -1,6 +1,5 @@
 
 ( cost:=10
     {{text()}} = {{output("text")}},
-    node_info({{fid()}}, {{nid()}}, {{gid()}}, _, _, _, _, _),
-    debug_text({{gid()}}, _, _, _, _, {{text()}})
+    node_info({{fid()}}, {{gid()}}, {{type()}}, _, _, _, _, _, _, _, {{text()}})
 )

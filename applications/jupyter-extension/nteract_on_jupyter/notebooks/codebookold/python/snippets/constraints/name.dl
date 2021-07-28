@@ -1,0 +1,53 @@
+
+/* SNIPPET: [constraints] name.dl */ 
+<<$type [ "call" ] $>> ( cost:=10
+    (
+        /* We found an identifier */
+        {{rand(1)}} = "identifier",
+        /* And it's the function field of us (we are a call) */
+        child_of({{fid()}}, {{rand(2)}}, _, "function", {{nid()}}),
+        /* Get gid / constrain type */
+        node_info({{fid()}}, {{rand(2)}}, {{rand(3)}}, {{rand(1)}}, _, _, _, _)
+    ; /* OR */
+        /* We are the attribute of */
+        child_of({{fid()}}, {{rand(1)}}, _, "attribute", {{rand(2)}}),
+        /* Something that's the function field of us (we are a call) */
+        child_of({{fid()}}, {{rand(2)}}, _, "function", {{nid()}}),
+        /* Get gid */
+        node_info({{fid()}}, {{rand(1)}}, {{rand(3)}}, _, _, _, _, _)
+    ), 
+    /* In either case, rand(3) is the gid of the name */
+    debug_text({{rand(3)}}, _, _, _, _, {{output("name")}})
+)
+
+<<$type [ "import_statement", "import_from_statement" ] $>> ( cost:=10
+    (
+        /* Something that is the 'name' child of */
+        child_of({{fid()}}, {{rand(2)}}, _, "name", {{rand(3)}}),
+        /* Something that is the 'name' child of us */
+        child_of({{fid()}}, {{rand(3)}}, _, "name", {{nid()}}),
+        node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, "dotted_name", _, _, _, _)
+        /*  ^ This covers `import pandas.blah as ...` */
+    ; /* OR */
+        /* Something that is the 'name' child of us */
+        child_of({{fid()}}, {{rand(2)}}, _, "name", {{nid()}}),
+        node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, "dotted_name", _, _, _, _)
+        /*  ^ This covers `import pandas.blah` */
+    ; /* OR */
+        /* Something that is the 'module_name' child of us */
+        child_of({{fid()}}, {{rand(2)}}, _, "module_name", {{nid()}}),
+        node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, "dotted_name", _, _, _, _)
+        /*  ^ This covers `from pandas.blah import ...` */
+    ),
+    debug_text({{rand(1)}}, _, _, _, _, {{output("name")}})
+)
+
+<<$type [ "keyword_argument" ] $>> ( cost:=10
+    /* Something that is the 'name' child of us */
+    child_of({{fid()}}, {{rand(2)}}, _, "name", {{nid()}}),
+    node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, "identifier", _, _, _, _),
+    debug_text({{rand(1)}}, _, _, _, _, {{output("name")}})
+    /*  ^ This covers `name=...` */
+)
+
+/* TODO: names of function/class def  ; fields ; etc. */

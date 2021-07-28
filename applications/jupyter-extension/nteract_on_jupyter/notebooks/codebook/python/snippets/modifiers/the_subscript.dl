@@ -1,5 +1,5 @@
 
 /* SNIPPET: [modifiers] the_subscript.dl */ 
 ( cost:=5
-    child_of({{fid()}}, {{nid()}}, _, "subscript", {{nid(parent)}})
+    child_of({{fid()}}, _, "subscript", {{gid(parent)}}, {{gid()}}, {{type(parent)}}, {{type()}})
 )

@@ -4,26 +4,25 @@
     /* We are an identifier */
     {{type()}} = "identifier",
     /* That is the first child of */
-    child_of({{fid()}}, {{nid()}}, 1, _, {{rand(1)}}),
+    child_of({{fid()}}, 1, "child", {{rand(1)}}, {{gid()}}, _, {{type()}}),
     /* Something that is the 'name' child of */
-    child_of({{fid()}}, {{rand(1)}}, _, "name", {{rand(2)}}),
+    child_of({{fid()}}, _, "name", {{rand(2)}}, {{rand(1)}}, _, _),
     /* Something that is the 'name' child of our parent */
-    child_of({{fid()}}, {{rand(2)}}, _, "name", {{nid(parent)}})
-    /*  ^ This covers `import pandas.blah as ...` */
+    child_of({{fid()}}, _, "name", {{gid(parent)}}, {{rand(2)}}, {{type(parent)}}, _)
 ; /* OR */
     /* We are an identifier */
     {{type()}} = "identifier",
     /* That is the first child of */
-    child_of({{fid()}}, {{nid()}}, 1, _, {{rand(1)}}),
-    /* Something that is the 'name' child of our parent */
-    child_of({{fid()}}, {{rand(1)}}, _, "name", {{nid(parent)}})
+    child_of({{fid()}}, 1, "child", {{rand(1)}}, {{gid()}}, _, {{type()}}),
+    /* Something that is the 'name' child of */
+    child_of({{fid()}}, _, "name", {{gid(parent)}}, {{rand(1)}}, {{type(parent)}}, _)
     /*  ^ This covers `import pandas.blah` */
 ; /* OR */
     /* We are an identifier */
     {{type()}} = "identifier",
     /* That is the first child of */
-    child_of({{fid()}}, {{nid()}}, 1, _, {{rand(1)}}),
-    /* Something that is the 'module_name' child of our parent */
-    child_of({{fid()}}, {{rand(1)}}, _, "module_name", {{nid(parent)}})
+    child_of({{fid()}}, 1, "child", {{rand(1)}}, {{gid()}}, _, {{type()}}),
+    /* Something that is the 'module_name' child of */
+    child_of({{fid()}}, _, "module_name", {{gid(parent)}}, {{rand(1)}}, {{type(parent)}}, _)
     /*  ^ This covers `from pandas.blah import ...` */
 )

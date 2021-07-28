@@ -1,6 +1,6 @@
 
 /* SNIPPET: [modifiers] second_arg.dl */
 ( cost:=1
-    child_of({{fid()}}, {{rand(1)}}, _, "arguments", {{nid(parent)}}),
-    child_of({{fid()}}, {{nid()}}, 2, _, {{rand(1)}})
+    child_of({{fid()}}, _, "arguments", {{gid(parent)}}, {{rand(1)}}, "call", "argument_list"),
+    child_of({{fid()}}, 2, "child", {{rand(1)}}, {{gid()}}, "argument_list", {{type()}})
 )

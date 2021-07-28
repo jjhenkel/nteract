@@ -1,10 +1,7 @@
 from os import stat
 from ..python import *
 from functools import lru_cache
-from pandarallel import pandarallel
 
-
-pandarallel.initialize()
 
 
 def _kw_arg(df, n): return DSNotebooks.exec(
@@ -56,11 +53,11 @@ class DSNotebooks:
             | is_ | anything(with_text('sklearn'))
         )
 
-        df2 = DSNotebooks.exec(
-            imports(
-                from_set(df1, 'gid_import')
-            ) % select('name') % 'import'
-        ).set_index('gid_import')
+        # df2 = DSNotebooks.exec(
+        #     imports(
+        #         from_set(df1, 'gid_import')
+        #     ) % select('name') % 'import'
+        # ).set_index('gid_import')
 
         # df1['out_name_import'] = df1.gid_import.apply(
         #     lambda x: df2.loc[x].out_name_import
@@ -71,16 +68,12 @@ class DSNotebooks:
     @staticmethod
     @lru_cache(maxsize=None)
     def uses_of_sklearn_imports():
-        tmp = DSNotebooks.exec( 
-            use_of(imports(
-                from_set(DSNotebooks.sklearn_imports(), 'gid_import')
-            )) % 'use'
-        )
-
         df = DSNotebooks.exec(
             call() % 'use'
             | where | call_target()
-            | isa |  anything(from_set(tmp, 'gid_use'))
+            | isa |  use_of(imports(
+                from_set(DSNotebooks.sklearn_imports(), 'gid_import')
+            ) % 'import')
         )
 
         return df
@@ -157,8 +150,8 @@ class DSNotebooks:
         )
 
         df['pretty'] = df.gid_target.apply(
-            lambda x: 'AddCol[' + temp[temp.gid ==
-                                       x].cols.str.join(',').values[0] + ']'
+            lambda x: 'AddCol[' + str(temp[temp.gid ==
+                                       x].cols.str.join(',').values[0]) + ']'
         )
         df['gid'] = df.gid_target
 
@@ -227,9 +220,25 @@ class DSNotebooks:
             'read_table'
         ]
 
-        df = Queries.qualified_calls('pandas', read_calls)
+        temp1 = execute(
+            imports(with_name("pandas")) % 'import',
+            compile=True
+        )
 
-        df['pretty'] = 'Read[' + df.call_type + ']'
+        temp2 = execute(
+            use_of(imports(from_set(temp1, 'gid_import'))) % 'use',
+            compile=True
+        )
+
+        df = execute(
+            call() % select('name') % 'call'
+            |where| call_target() |is_| anything(from_set(temp2, 'gid_use')),
+            compile=True
+        )
+
+        df = df[df.out_name_call.isin(read_calls)]
+
+        df['pretty'] = 'Read[' + df.out_name_call + ']'
         df['gid'] = df.gid_call
 
         return df
@@ -346,11 +355,11 @@ class DSNotebooks:
     def single_compares():
         compares = DSNotebooks.exec(
             comparison(with_exactly_two_children()) % 'filter'
-            | where | the_second_child()
-            | isa | literal() % 'rhs'
+            | where | the_first_child_is( anything() % 'lhs' )
+            | and_w | the_second_child_is( literal() % 'rhs' )
         )
 
-        compares['op'] = Utils.get_comp_op(compares, 'source_text_filter', 'source_text_rhs')
+        compares['op'] = Utils.get_comp_op(compares, 'source_text_filter', 'source_text_lhs', 'source_text_rhs')
         compares['rhs_type'] = Utils.get_literal_type(compares, 'source_text_rhs')
 
         uses_of_compares = DSNotebooks.exec(
@@ -361,7 +370,7 @@ class DSNotebooks:
             compares.set_index('gid_filter')[['op', 'rhs_type']]
         )
         uses_of_compares['gid'] = uses_of_compares.gid_use
-        uses_of_compares['pretty'] = 'Compare[' + uses_of_compares.op + uses_of_compares.rhs_type + ']'
+        uses_of_compares['pretty'] = 'Compare[' + uses_of_compares.op + ',' + uses_of_compares.rhs_type + ']'
 
         return uses_of_compares
 

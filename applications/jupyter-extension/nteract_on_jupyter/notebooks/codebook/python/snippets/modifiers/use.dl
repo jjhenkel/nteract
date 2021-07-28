@@ -2,33 +2,25 @@
 /* SNIPPET: [modifiers] use.dl */ 
 <<$childtype [ "import_statement", "import_from_statement" ] $>> ( cost:=5
     /* We are some use of a def */
-    dflow({{gid()}}, "entry", {{gid()}}, "exit", "use", _, {{rand(1)}}),
-    /* Get the def's nid */
-    node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, _, _, _, _, _),
+    dataflow({{fid()}}, {{rand(1)}}, {{gid()}}, "direct-use"),
     /* That def is the "alias" part of an alised_import */
-    child_of({{fid()}}, {{rand(2)}}, _, "alias", {{rand(3)}}),
+    child_of({{fid()}}, _, "alias", {{rand(2)}}, {{rand(1)}}, "aliased_import", _),
     /* That aliased_import is the name of our import_statement */
-    child_of({{fid()}}, {{rand(3)}}, _, "name", {{nid(child)}})
+    child_of({{fid()}}, _, "name", {{gid(child)}}, {{rand(2)}}, _, _)
 ; /* OR */
     /* We are some use of a def */
-    dflow({{gid()}}, "entry", {{gid()}}, "exit", "use", _, {{rand(1)}}),
-    /* Get the def's nid */
-    node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, _, _, _, _, _),
+    dataflow({{fid()}}, {{rand(1)}}, {{gid()}}, "direct-use"),
     /* That def is the "alias" part of an alised_import */
-    child_of({{fid()}}, {{rand(2)}}, _, "name", {{nid(child)}})
+    child_of({{fid()}}, _, "name", {{gid(child)}}, {{rand(1)}}, _, _)
 )
 
 <<$childtype [ "call", "string", "list", "comparison_operator", "binary_operator", "unary_operator" ] $>> ( cost:=5
     /* We are some use of a def */
-    dflow({{gid()}}, "entry", {{gid()}}, "exit", "use", _, {{rand(1)}}),
-    /* Get the def's nid */
-    node_info({{fid()}}, {{rand(2)}}, {{rand(1)}}, _, _, _, _, _),
+    dataflow({{fid()}}, {{rand(1)}}, {{gid()}}, "direct-use"),
     /* That def is the left of some stmt */
-    child_of({{fid()}}, {{rand(2)}}, _, "left", {{rand(3)}}),
+    child_of({{fid()}}, _, "left", {{rand(2)}}, {{rand(1)}}, "assignment", _),
     /* We are the right of that stmt */
-    child_of({{fid()}}, {{nid(child)}}, _, "right", {{rand(3)}}),
-    /* That stmt is an assignmnet */
-    node_info({{fid()}}, {{rand(3)}}, _, "assignment", _, _, _, _)
+    child_of({{fid()}}, _, "right", {{rand(2)}}, {{gid(child)}}, "assignment", {{type(child)}})
 ;
     /* Direct use */
     {{gid()}} = {{gid(child)}}

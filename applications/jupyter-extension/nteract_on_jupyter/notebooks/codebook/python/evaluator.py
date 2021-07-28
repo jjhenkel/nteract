@@ -3,13 +3,22 @@ from .modifiers import *
 from .querybuilder import CB
 from .snippets import SNIPPETS as S, refresh_snippet_offsets
 
+import sys
+sys.path.append('/arrow/python')
+
+
 import multiprocessing
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 import subprocess
+import sqlite3
 import hashlib
+import xxhash
 import time
 import gzip
 import glob
+import tqdm
 import json
 import io
 import os
@@ -53,30 +62,147 @@ class Relation:
         
         return temp
 
-class IndexFilter:
-    def __init__(self, the_words):
-        self.the_words = the_words
+
+
+def hashit(thing):
+    return int.from_bytes(
+        xxhash.xxh64(thing, seed=3235823838).intdigest().to_bytes(8, byteorder='little'),
+        signed=True, byteorder="little"
+    )
+
+
+class ChunkMeta:
+    def __init__(self, chunk, rindex, fpaths):
+        self.chunk = chunk
+        self.rindex = rindex
+        self.fpaths = fpaths
+        self.fids_to_fpaths = {
+            hashit('parsed/' + os.path.basename(fpath) + '.xml.gz'): fpath for fpath in self.fpaths
+        }
+        self.fids_set = set(self.rindex.fid.unique())
     
-    def __call__(self, file):
-        with gzip.open(file, 'rb') as fh:
-            as_json = json.load(fh)
-            matches = []
-            for word in self.the_words:
-                matches.append(set(as_json[word] if word in as_json else []))
-            return matches[0].intersection(*matches[1:])
+    def write_out_filter(self, hashed_words, allowable_fids=None):
+        # If we have no constraints, we write no file
+        if len(hashed_words) == 0 and allowable_fids is None:
+            try:
+                os.remove('/tmp/query-inputs{}/relations/filter-fids.txt'.format(self.chunk))
+            except:
+                pass
+            return len(self.fids_set)
+
+        # Matches ALL the prefilter words
+        matches = [ self.fids_set ]
+        for word in hashed_words:
+            matches.append(set(
+                self.rindex[self.rindex.tid == word].fid.unique()
+            ))
+        
+        matches = matches[0].intersection(*matches)
+
+        # If we are further constrained, write that out
+        if allowable_fids is not None:
+            matches = matches.intersection(allowable_fids)
+        
+        os.makedirs('/tmp/query-inputs{}/relations'.format(self.chunk), exist_ok=True)
+        os.makedirs('/tmp/query-outputs{}/relations'.format(self.chunk), exist_ok=True)
+
+        with open('/tmp/query-inputs{}/relations/filter-fids.txt'.format(self.chunk), 'w') as fh:
+            for match in matches:
+                fh.write(str(match) + '\n')
+        
+        return len(matches)
+
+
+class MetaFilter:
+    def __init__(self, hashed_words, allowable_fids=None):
+        self.hashed_words = hashed_words
+        self.allowable_fids = allowable_fids
+    
+    def __call__(self, chunk):
+        return chunk.write_out_filter(
+            self.hashed_words, self.allowable_fids
+        )
+
+
+class IndexFilter:
+    def __init__(self):
+        self.rindex = None
+        self.chunk = ""
+    
+    def __call__(self, chunk):
+        rindex = pd.read_parquet(
+            '{}/relations/rindex.merged'.format(chunk),
+            columns=['tid', 'fid']
+        )
+        
+        fpaths = []
+        with open('{}/listing.txt'.format(chunk)) as fh:
+            fpaths = [ x.strip() for x in fh.readlines() if len(x.strip()) > 0 ]
+        
+        return ChunkMeta(chunk, rindex, fpaths)
+
+
 
 class Evaluator:
     _dataset = '/data/test-1k'
 
     @staticmethod
+    def resolve_fid(fid):
+        return Evaluator._fids_to_fpaths[fid]
+
+    @staticmethod
     def use_ds_test_1k():
         Evaluator._dataset = '/data/test-1k'
+    
     @staticmethod
     def use_ds_gh_2017():
+        index_filter = IndexFilter()
+
         Evaluator._dataset = '/data/gh-2017'
+
+        # pool = multiprocessing.Pool()
+        # chunks = list(glob.glob(Evaluator._dataset + '/chunked/chunk-*'))
+
+        # print('Using dataset "{}"'.format(Evaluator._dataset))
+        # print('  + Dataset has {} chunks'.format(len(chunks)))
+
+        # for chunk in tqdm.tqdm(pool.imap(index_filter, chunks), desc="  + Loading metadata", total=len(chunks)):
+        #     Evaluator._chunks_meta.append(chunk)
+        #     for fid, fpath in chunk.fids_to_fpaths.items():
+        #         Evaluator._fids_to_fpaths[fid] = fpath
+
     @staticmethod
     def use_ds_gh_2019():
         Evaluator._dataset = '/data/gh-2019'
+    
+    @staticmethod
+    def create_sqlite_db(force=False):
+        if os.path.isfile(Evaluator._dataset + '/metadata.sqlite.db') and not force:
+            return
+
+        con = sqlite3.connect(Evaluator._dataset + '/metadata.sqlite.db')
+
+        index_filter = IndexFilter()
+        pool = multiprocessing.Pool()
+        chunks = list(glob.glob(Evaluator._dataset + '/chunked/chunk-*'))
+
+        cur = con.cursor()
+
+        cur.execute('CREATE TABLE chunks_fids_paths (chunk text, fid Int64, path text)')
+        cur.execute('CREATE TABLE selected_fids (fid Int64)')
+
+        print('[One time setup] Using dataset "{}"'.format(Evaluator._dataset))
+        print('  + Dataset has {} chunks'.format(len(chunks)))
+
+        for chunk in tqdm.tqdm(pool.imap(index_filter, chunks), desc="  + Loading metadata", total=len(chunks)):
+            values = []
+            for fid, fpath in chunk.fids_to_fpaths.items():
+                values.append((chunk.chunk, fid, fpath))
+            cur.executemany("INSERT INTO chunks_fids_paths VALUES (?, ?, ?)", values)
+            
+        con.commit()
+        con.close()
+    
     @staticmethod
     def use_ds_gh_2020():
         Evaluator._dataset = '/data/gh-2020'
@@ -93,6 +219,7 @@ class Evaluator:
         self.query = []
         self.inputs = ''
         self.dataset = Evaluator._dataset
+        self.meta_db = sqlite3.connect(self.dataset + '/metadata.sqlite.db')
         self.labels = []
 
         self.pre_filter_words = []
@@ -102,15 +229,12 @@ class Evaluator:
         self.files_prefilters = []
 
         if prefilter_files is not None:
-            self.files_prefilters.append({
-                f.replace('/cb-target/', self.dataset + '/processed/') 
-                for f in prefilter_files
-            })
+            self.files_prefilters.append(set(prefilter_files))
 
-        self.query.append((str(
-            Relation(self, "file_info").args("fid", "fpath")
-        ) + ',\n', 1))
-        self.set_output("fpath")
+        # self.query.append((str(
+        #     Relation(self, "file_info").args("fid", "fpath")
+        # ) + ',\n', 1))
+        self.set_output("fid")
 
     def build_query(self, compiled):
         last = None
@@ -170,12 +294,13 @@ class Evaluator:
         start = time.perf_counter()
 
         profile_result = subprocess.run([
-            '/usr/local/bin/souffle',
+            '/app/souffle.sh',
+            '-S',
             '-p',
             '{}'.format(self.query_prof_dl.replace('.dl', '')),
             '--profile-frequency',
             '-F',
-            '/data/for-profiling',
+            self.dataset + '/chunked/chunk-1553/relations',
             '{}'.format(self.query_prof_dl),
         ], capture_output=True)
 
@@ -185,7 +310,8 @@ class Evaluator:
 
         start = time.perf_counter()
         compile_result = subprocess.run([
-            '/usr/local/bin/souffle',
+            '/app/souffle.sh',
+            '-S',
             '-PSIPS:profile-use',
             '-u',
             '{}'.format(self.query_prof_dl.replace('.dl', '')),
@@ -193,13 +319,17 @@ class Evaluator:
             '{}'.format(self.query_dl)
         ], capture_output=True)
 
-        # FIXUP
         the_program = compile_result.stdout.decode('utf-8')
-        the_program = the_program.replace('return 0;\n', '\nobj.dumpOutputs();\nreturn 0;\n')
+
+        # NOTE: below is not needed now that we are back to 
+        # writing to disk / reading back in for collation
+
+        # FIXUP
+        # the_program = the_program.replace('return 0;\n', '\nobj.dumpOutputs();\nreturn 0;\n')
         
         with open('{}.cpp'.format(self.query_dl[:-3]), 'w') as fh:
             fh.write(the_program)
-        
+
         compile_result = subprocess.run([
             '/usr/local/bin/souffle-compile',
             '{}.cpp'.format(self.query_dl[:-3])
@@ -215,50 +345,34 @@ class Evaluator:
         return True
     
     def select_files(self, limit=None):
-        start = time.perf_counter()
-        files = []
-        
-        if len(self.pre_filter_words) > 0:
-            files = self.get_files_from_word_index(
-                self.pre_filter_words
-            )
-            if self.debug:
-                print("Retrived files from index (words pre-filter)...")
-                print("  + Found {} files".format(len(files)))
-        else:
-            self.all_files = []
-            with open('{}/indices/all-files.txt'.format(self.dataset), 'r') as fh:
-                text = fh.read()
-                for line in text.split('\n'):
-                    if len(line.strip()) > 0:
-                        self.all_files.append(line.strip())
-            self.all_files = set(self.all_files)
-            files = self.all_files
-            if self.debug:
-                print("Retrived all files (no index)...")
-                print("  + Found {} files".format(len(files)))
+        # So, in the new version of this, I'm thinking we write out a file per chunk
+        # that has the fids we have downfiltered to OR, if no filtering applies, we 
+        # don't write out any files
 
+        assert limit is None, "Limiting not supported currently"
+
+        start = time.perf_counter()
+
+        allowable = None
         if len(self.files_prefilters) > 0:
             allowable = set.intersection(*self.files_prefilters)
             print("  + Had only {} allowable files (pre-filter files)".format(len(allowable)))
-            files = set.intersection(files, allowable)
         
-        if self.debug and limit is not None:
-            print("Limiting to {} files".format(limit))
+        print('  - TODO: re-enable writing pre-filters.')
+        # cur = self.meta_db.cursor()
+        # cur.execute('DELETE FROM selected_fids')
+
+        # if allowable is not None:
+        #     cur.executemany('INSERT INTO selected_fids VALUES (?)', list(allowable))
+        
+        # self.meta_db.commit()
+
         elapsed_time = time.perf_counter() - start
 
         print(f"  + File select time: {elapsed_time:.4f}s")
-        print("  + Found {} matching files".format(len(files)))
-        
-        if limit is not None:
-            return files[:limit]
-        
-        return files
+        # print("  + Found {} matching files".format(sum(counts)))
 
     def eval(self, compile=False):
-        def divide_chunks(l, n):
-            for i in range(0, len(l), n): 
-                yield l[i:i + n]
         refresh_snippet_offsets()
 
         total_start = time.perf_counter()
@@ -269,55 +383,47 @@ class Evaluator:
 
         # Maybe compile
         in_file = self.query_dl
-        targets = []
         if compile:
-            targets, status = (
-                self.select_files(),
-                self.compile_query()
-            )
+            status = self.compile_query()
             # Compile failed?
             if not status:
                 return
             in_file = in_file[:-3] # Remove the .dl
-        else: 
-            targets = self.select_files()
 
-        # Chunk files for compiled version
-        new_targets = []
-        if compile:
-            targets = list(targets)
-            chunksize = max(int(len(targets) / (multiprocessing.cpu_count()*4)), 1)
-            target_chunks = list(divide_chunks(targets, chunksize))
-            for i, chunk in enumerate(target_chunks):
-                tpath = '/tmp/query-targets/targets-{}.txt'.format(i+1)
-                with open(tpath, 'w') as fh:
-                    fh.write('\n'.join([x + '.flow' for x in chunk]) + '\n')
-                new_targets.append(tpath)
-            targets = new_targets
+        self.select_files()
 
+        targets = list(glob.glob(self.dataset + '/chunked/chunk-*/relations'))
         start = time.perf_counter()
+
+        out_files = list(
+            glob.glob('/tmp/query-outputs' + self.dataset + '/chunked/chunk-*/relations/results/data.parquet')
+        )
+
+        for file in out_files:
+            os.remove(file)
+
+        #  -D/tmp/query-outputs/{}
         exec_result = subprocess.run([
             'bash',
             '-c',
             'parallel -k ' + (
-                ("souffle -F{}.flow/ -D- " + in_file) if not compile 
-                else (in_file + " -j 4 -F{}")
+                ("/app/souffle.sh -F{} -D/tmp/query-outputs/{} " + in_file) if not compile 
+                else ("/app/wrapper.sh " + in_file + " -F{} -D/tmp/query-outputs/{}")
             )
         ], input=('\n'.join(targets) + '\n').encode('utf-8'), capture_output=True)
         elapsed_time = time.perf_counter() - start
         print(f"  + Query time: {elapsed_time:.4f}s")
 
-
         start = time.perf_counter()
-        output_tmp = '/tmp/synth-query-results.csv'
-        with open(output_tmp, 'w') as fh:
-            decoded = exec_result.stdout.decode().split('\n')
-            for line in decoded:
-                if '\t' not in line or line == '\t'.join(self.outputs):
-                    continue
-                fh.write(line + '\n')
 
-        final = pd.read_csv(output_tmp, sep='\t', names=self.outputs)
+        out_files = list(
+            glob.glob('/tmp/query-outputs' + self.dataset + '/chunked/chunk-*/relations/results/data.parquet')
+        )
+
+        final = pq.ParquetDataset(
+            out_files
+        ).read().to_pandas()
+
         elapsed_time = time.perf_counter() - start
         print(f"  + Collation time: {elapsed_time:.4f}s")
 
@@ -332,7 +438,7 @@ class Evaluator:
         return query.strip().rstrip(',') + '\n  .\n'
 
     def get_footer(self):
-        footer = ".output synth_query\n"
+        footer = ".output synth_query(IO=parquet, filename=\"results\")\n"
         return footer
 
     def get_header(self, compiled):
@@ -468,6 +574,9 @@ class Evaluator:
         if node.has_mod(CBAnyChildIs):
             text, _, cost = S['/modifiers/any_child.dl'](node)
             self.query.append((text, cost))
+        if node.has_mod(CBParentIs):
+            text, _, cost = S['/modifiers/parent.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBRhs):
             text, _, cost = S['/modifiers/the_rhs.dl'](node)
             self.query.append((text, cost))
@@ -477,8 +586,26 @@ class Evaluator:
         if node.has_mod(CBObjectIs):
             text, _, cost = S['/modifiers/the_object.dl'](node)
             self.query.append((text, cost))
+        if node.has_mod(CBBodyIs):
+            text, _, cost = S['/modifiers/the_body.dl'](node)
+            self.query.append((text, cost))
+        if node.has_mod(CBNameIs):
+            text, _, cost = S['/modifiers/the_name.dl'](node)
+            self.query.append((text, cost))
+        if node.has_mod(CBOnlyLambdaParamIs):
+            text, _, cost = S['/modifiers/only_lambda_param.dl'](node)
+            self.query.append((text, cost))
+        if node.has_mod(CBFunctionIs):
+            text, _, cost = S['/modifiers/the_function.dl'](node)
+            self.query.append((text, cost))
         if node.has_mod(CBAttributeIs):
             text, _, cost = S['/modifiers/the_attribute.dl'](node)
+            self.query.append((text, cost))
+        if node.has_mod(CBSecondSubscriptIs):
+            text, _, cost = S['/modifiers/second_subscript.dl'](node)
+            self.query.append((text, cost))
+        if node.has_mod(CBFirstSubscriptIs):
+            text, _, cost = S['/modifiers/first_subscript.dl'](node)
             self.query.append((text, cost))
         if node.has_mod(CBSubscriptIs):
             text, _, cost = S['/modifiers/the_subscript.dl'](node)
@@ -550,8 +677,8 @@ class Evaluator:
         con = node.get_con(CBFromSet)
         if con is not None:
             con.write_file(self.inid)
-            glabel = 'fpath, gid_{}'.format(node.id if node.label is None else node.label)
-            self.inputs += ".decl input_" + str(self.inid) + '(fpath:symbol, gid:Gid)\n' + \
+            glabel = 'fid, gid_{}'.format(node.id if node.label is None else node.label)
+            self.inputs += ".decl input_" + str(self.inid) + '(fid:Fid, gid:Gid)\n' + \
                 ".input input_" + str(self.inid) + \
                 '(IO=file, filename="{}", delimiter="\\t")\n\n'.format(con.file)
             self.query.append((str(
@@ -560,9 +687,7 @@ class Evaluator:
             self.inid += 1
             # Maybe constrain to the files that had these GIDs
             if con.files_constraint is not None:
-                self.files_prefilters.append({
-                    f.replace('/cb-target/', self.dataset + '/processed/') for f in con.files_constraint
-                })
+                self.files_prefilters.append(con.files_constraint)
 
         # If we have a constraint on child count, add that 
         con = node.get_con(CBExactlyTwoChildren)

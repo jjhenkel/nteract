@@ -1,0 +1,7 @@
+
+/* SNIPPET: [modifiers] the_only_subscript.dl */ 
+( cost:=25
+    child_of({{fid()}}, {{nid()}}, N, "subscript", {{nid(parent)}}),
+    !child_of({{fid()}}, _, N+1, "subscript", {{nid(parent)}}),
+    !child_of({{fid()}}, _, N-1, "subscript", {{nid(parent)}})
+)

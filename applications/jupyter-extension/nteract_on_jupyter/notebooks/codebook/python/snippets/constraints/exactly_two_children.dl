@@ -1,5 +1,5 @@
 
 /* SNIPPET: [modifiers] exactly_two_children.dl */
 ( cost:=5
-    child_count({{nid()}}, 2)
+    types_info({{fid()}}, {{gid()}}, {{type()}}, _, _, 2)
 )

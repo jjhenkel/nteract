@@ -2,5 +2,5 @@
 /* SNIPPET: [modifiers] any_parent.dl */
 ( cost:=15
     /* Parent encloses us */
-    encloses({{gid(parent)}}, {{gid()}})
+    encloses({{fid()}}, {{gid(parent)}}, {{gid()}})
 )

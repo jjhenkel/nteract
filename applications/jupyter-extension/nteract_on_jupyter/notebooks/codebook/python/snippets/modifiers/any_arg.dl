@@ -1,6 +1,6 @@
 
 /* SNIPPET: [modifiers] any_arg.dl */
 ( cost:=5
-    child_of({{fid()}}, {{rand(1)}}, _, "arguments", {{nid(parent)}}),
-    child_of({{fid()}}, {{nid()}}, _, _, {{rand(1)}})
+    child_of({{fid()}}, _, "arguments", {{gid(parent)}}, {{rand(1)}}, "call", "arguments"),
+    child_of({{fid()}}, _, "child", {{rand(1)}}, {{gid()}}, "arguments", {{type()}})
 )

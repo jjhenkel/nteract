@@ -1,0 +1,6 @@
+
+/* SNIPPET: [modifiers] any_arg.dl */
+( cost:=5
+    child_of({{fid()}}, {{rand(1)}}, _, "arguments", {{nid(parent)}}),
+    child_of({{fid()}}, {{nid()}}, _, _, {{rand(1)}})
+)

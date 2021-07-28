@@ -1,5 +1,5 @@
 
 /* SNIPPET: [modifiers] no_third_child.dl */
 ( cost:=25
-    !child_of({{fid()}}, _, 3, _, {{nid(parent)}})
+    !child_of({{fid()}}, 3, _, {{gid(parent)}}, _, {{type(parent)}}, _)
 )

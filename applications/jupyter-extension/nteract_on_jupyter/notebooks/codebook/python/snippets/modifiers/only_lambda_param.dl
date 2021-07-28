@@ -1,0 +1,7 @@
+
+/* SNIPPET: [modifiers] only_lambda_param.dl */ 
+( cost:=25
+    child_of({{fid()}}, _, "parameters", {{gid(parent)}}, {{rand(1)}}, {{type(parent)}}, "lambda_parameters"),
+    child_of({{fid()}}, _, "child", {{rand(1)}}, {{gid()}}, "lambda_parameters", {{type()}}),
+    types_info({{fid()}}, {{rand(1)}}, "lambda_parameters", _, _, 1)
+)

@@ -75,6 +75,7 @@ class SnippetFunc:
             replacements['type(child)'] = 'type_{}'.format(child.id if child.label is None else child.label)
             replacements['nid(child)'] = 'nid_{}'.format(child.id if child.label is None else child.label)
             replacements['gid(child)'] = 'gid_{}'.format(child.id if child.label is None else child.label)
+            
         elif node.children is not None and len(node.children) > 1:
             for i, child in enumerate(node.children):
                 replacements['type(child{})'.format(i+1)] = 'type_{}'.format(child.id if child.label is None else child.label)

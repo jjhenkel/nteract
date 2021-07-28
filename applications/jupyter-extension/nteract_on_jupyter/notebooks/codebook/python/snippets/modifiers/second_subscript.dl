@@ -1,0 +1,5 @@
+
+/* SNIPPET: [modifiers] second_subscript.dl */
+( cost:=5
+    child_of({{fid()}}, 3, "subscript", {{gid(parent)}}, {{gid()}}, {{type(parent)}}, {{type()}})
+)

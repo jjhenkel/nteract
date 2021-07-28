@@ -1,0 +1,6 @@
+
+/* SNIPPET: [modifiers] any_child.dl */
+( cost:=15
+    /* We enclose child */
+    encloses({{gid()}}, {{gid(child)}})
+)

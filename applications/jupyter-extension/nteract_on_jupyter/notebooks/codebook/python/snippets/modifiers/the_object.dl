@@ -1,5 +1,5 @@
 
 /* SNIPPET: [modifiers] the_object.dl */ 
 ( cost:=5
-    child_of({{fid()}}, {{nid()}}, _, "object", {{nid(parent)}})
+    child_of({{fid()}}, _, "object", {{gid(parent)}}, {{gid()}}, {{type(parent)}}, {{type()}})
 )

@@ -13,130 +13,67 @@
 .type FlowTarget = Gid
 
 .decl child_of(
-    fid:Fid, child:Nid, index:number, field:FieldName, parent:Nid
+    fid:Fid, idx:number, field:FieldName,
+    pgid:Gid, cgid:Gid, ptype:TypeName, ctype:TypeName
 )
 .input child_of(
-    IO=files,
-    filename="child_of.csv.gz",
-    delimiter="\t"
+    IO=parquet,
+    filename="child_of",
+    partition="field"
 )
+
 
 .decl node_info(
-    fid:Fid, nid:Nid, gid:Gid,
-    type:TypeName, field:FieldName, tid: Tid,
-    sb:ByteOffset, eb:ByteOffset
+    fid:Fid, gid:Gid, type:TypeName,
+    tid:Tid, sb:ByteOffset, sl:number,
+    sr:number, sc:number, er:number, ec:number, 
+    text:SourceText
 )
 .input node_info(
-    IO=files,
-    filename="node_info.csv.gz",
-    delimiter="\t"
+    IO=parquet,
+    filename="node_info",
+    partition="type"
 )
 
-.decl debug_text(gid:Gid, sl:number, sc:number, el:number, ec:number, text:SourceText)
-.input debug_text(
-    IO=files,
-    filename="debug_text.csv.gz",
-    delimiter="\t"
-)
 
-.decl file_info(fid:Fid, path:symbol)
-.input file_info(
-    IO=files,
-    filename="file_info.csv.gz",
-    delimiter="\t"
+.decl dataflow(
+    fid:Fid, source:Gid, sink:Gid, kind:symbol
 )
-
-.decl dflow(
-    from: Gid,
-    from_mod: FlowMod,
-    to: Gid,
-    to_mod: FlowMod,
-    edge_kind: FlowKind,
-    edge_sub: FlowSubKind,
-    edge_target: FlowTarget
-)
-.input dflow(
-    IO=files,
-    filename="dflow.csv.gz",
-    delimiter="\t"
-)
-
-.decl flow(
-    from: Gid,
-    from_mod: FlowMod,
-    to: Gid,
-    to_mod: FlowMod,
-    edge_kind: FlowKind,
-    edge_sub: FlowSubKind,
-    edge_target: FlowTarget
-)
-.input flow(
-    IO=files,
-    filename="flow.csv.gz",
-    delimiter="\t"
-)
-
-.decl encloses(parent:Gid, child:Gid)
-.input encloses(
-    IO=files,
-    filename="encloses.csv.gz",
-    delimiter="\t"
-)
-
-.decl node_type(gid:Gid, type:TypeName)
-.input node_type(
-    IO=files,
-    filename="node_type.csv.gz",
-    delimiter="\t"
-)
-
-.decl name_of_def(def_gid:Gid, name:symbol)
-.input name_of_def(
-    IO=files,
-    filename="name_of_def.csv.gz",
-    delimiter="\t"
-)
-
-.decl name_of_ref(ref_gid:Gid, name:symbol)
-.input name_of_ref(
-    IO=files,
-    filename="name_of_ref.csv.gz",
-    delimiter="\t"
-)
-
-.decl dataflow(from:Gid, to:Gid, kind:symbol)
 .input dataflow(
-  IO=files,
-  filename="dataflow.csv.gz",
-  delimiter="\t"
+    IO=parquet,
+    filename="dataflow",
+    partition="kind"
 )
 
-.decl tdataflow(from:Gid, to:Gid)
+
+.decl tdataflow(
+    fid:Fid, source:Gid, sink:Gid
+)
 .input tdataflow(
-  IO=files,
-  filename="tdataflow.csv.gz",
-  delimiter="\t"
+    IO=parquet,
+    filename="tdataflow",
+    partition="kind"
 )
 
-.decl child_types(parent:Nid, type:TypeName)
-.input child_types(
-  IO=files,
-  filename="child_types.csv.gz",
-  delimiter="\t"
+
+.decl encloses(
+    fid:Fid, parent:Gid, child:Gid
+)
+.input encloses(
+    IO=parquet,
+    filename="encloses",
+    partition="fid"
 )
 
-.decl child_types_count(parent:Nid, c:number)
-.input child_types_count(
-  IO=files,
-  filename="child_types_count.csv.gz",
-  delimiter="\t"
+
+.decl types_info(
+    fid:Fid, gid:Gid, type:TypeName,
+    single_type:symbol, unique_types:number, child_count:number
 )
- 
-.decl child_count(parent:Nid, c:number)
-.input child_count(
-  IO=files,
-  filename="child_count.csv.gz",
-  delimiter="\t"
+.input types_info(
+    IO=parquet,
+    filename="types_info",
+    partition="type"
 )
 
 #include "/app/applications/jupyter-extension/nteract_on_jupyter/notebooks/codebook/python/snippets/utils.dl"

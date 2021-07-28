@@ -32,14 +32,14 @@ class Utils:
         )
 
     @staticmethod
-    def get_comp_op(df, filter, rhs):
+    def get_comp_op(df, filter, lhs, rhs):
         def _get_comp_op(x):
-            cleaned = x[0].replace(x[1], '').strip()
-            op = cleaned[-1]
-            if cleaned[-2] in ['!', '=', '>', '<']:
-                op = cleaned[-2] + op
-            return op
-        return df[[filter, rhs]].apply(_get_comp_op, axis=1)
+            cleaned = str(x[0]).replace(str(x[1]), '').replace(str(x[2]), '').strip()
+            
+            if cleaned in ['!=', '==', '>', '<', '>=', '<=', 'is', 'is not', 'in', 'not in', '<>']:
+                return cleaned
+            return '<unk>'
+        return df[[filter, lhs, rhs]].apply(_get_comp_op, axis=1)
   
 
 ###############################################################################
@@ -109,6 +109,10 @@ def function_def(*args):
 
 def expression_stmt(*args):
     return CB('expression_statement').with_constraints(*args)
+
+
+def slice_(*args):
+    return CB('slice').with_constraints(*args)
 
 
 def subscript(*args):
@@ -194,9 +198,9 @@ def from_set_old(series):
 
 def from_set(frame, col):
     inframe = pd.DataFrame()
-    inframe['fpath'] = frame['fpath']
+    inframe['fid'] = frame['fid']
     inframe['gid'] = frame[col]
-    return CBFromSet(inframe, files=set(frame.fpath.unique()))
+    return CBFromSet(inframe, files=set(frame.fid.unique()))
 
 
 ###############################################################################
@@ -224,6 +228,14 @@ def module_name():
 
 def imported_name():
     return CB().with_mods(CBImportedName())
+
+
+def the_first_subscript():
+    return CB().with_mods(CBFirstSubscriptIs())
+
+
+def the_second_subscript():
+    return CB().with_mods(CBSecondSubscriptIs())
 
 
 def the_first_arg():
@@ -278,6 +290,10 @@ def the_object():
     return CB().with_mods(CBObjectIs())
 
 
+def the_body():
+    return CB().with_mods(CBBodyIs())
+
+
 def the_attribute():
     return CB().with_mods(CBAttributeIs())
 
@@ -294,6 +310,14 @@ def the_value():
     return CB().with_mods(CBValueIs())
 
 
+def the_name():
+    return CB().with_mods(CBNameIs())
+
+
+def the_function():
+    return CB().with_mods(CBFunctionIs())
+
+
 def call_target():
     return CB().with_mods(CBCallTarget())
 
@@ -302,8 +326,16 @@ def every_child():
     return CB().with_mods(CBEveryChildIs())
 
 
+def the_only_lambda_param():
+    return CB().with_mods(CBOnlyLambdaParamIs())
+
+
 def child():
     return CB().with_mods(CBChildIs())
+
+
+def parent():
+    return CB().with_mods(CBParentIs())
 
 
 def no_third_child():
@@ -324,8 +356,20 @@ def the_value_is(subq):
     return the_value().merge(subq)
 
 
+def the_body_is(subq):
+    return the_body().merge(subq)
+
+
 def the_subscript_is(subq):
     return the_subscript().merge(subq)
+
+
+def the_first_subscript_is(subq):
+    return the_first_subscript().merge(subq)
+
+
+def the_second_subscript_is(subq):
+    return the_second_subscript().merge(subq)
 
 
 def the_first_arg_is(subq):
@@ -342,6 +386,10 @@ def the_only_subscript_is(subq):
 
 def child_is(subq):
     return child().merge(subq)
+
+
+def parent_is(subq):
+    return parent().merge(subq)
 
 
 def every_child_is(subq):
@@ -412,6 +460,18 @@ def the_second_arg_is(subq):
     return the_second_arg().merge(subq)
 
 
+def the_only_lambda_param_is(subq):
+    return the_only_lambda_param().merge(subq)
+
+
+def the_function_is(subq):
+    return the_function().merge(subq)
+
+
+def the_name_is(subq):
+    return the_name().merge(subq)
+
+
 def the_type_is(subq):
     return the_type().merge(subq)
 
@@ -456,10 +516,15 @@ def execute_union(*qs, compile=False, prefilter_files=None):
         ) for x in qs 
     )
 
-def visualize(data, focus):
+def visualize(frame, focus):
     from IPython import display
 
+    data = frame.copy()
+
     reformated = {}
+    data['fpath'] = data['fid'].apply(
+        lambda x: Evaluator.resolve_fid(x)
+    )
 
     keys = []
     sorts = ['fpath']

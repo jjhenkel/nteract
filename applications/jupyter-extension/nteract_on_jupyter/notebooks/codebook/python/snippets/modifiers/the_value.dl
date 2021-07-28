@@ -1,5 +1,5 @@
 
 /* SNIPPET: [modifiers] the_value.dl */ 
 ( cost:=5
-    child_of({{fid()}}, {{nid()}}, _, "value", {{nid(parent)}})
+    child_of({{fid()}}, _, "value", {{gid(parent)}}, {{gid()}}, {{type(parent)}}, {{type()}})
 )

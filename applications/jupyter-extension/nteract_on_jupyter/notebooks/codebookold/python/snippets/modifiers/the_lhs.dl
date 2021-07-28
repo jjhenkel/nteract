@@ -1,0 +1,5 @@
+
+/* SNIPPET: [modifiers] the_lhs.dl */ 
+( cost:=5
+    child_of({{fid()}}, {{nid()}}, _, "left", {{nid(parent)}})
+)

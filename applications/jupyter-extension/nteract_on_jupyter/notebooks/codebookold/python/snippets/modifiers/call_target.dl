@@ -1,0 +1,11 @@
+
+/* SNIPPET: [modifiers] call_target.dl */
+( cost:=5
+    /* We are an id and the direct target */
+    {{type()}} = "identifier",
+    child_of({{fid()}}, {{nid()}}, _, "function", {{nid(parent)}})
+; /* OR */
+    /* We are the object of the target attribute */
+    child_of({{fid()}}, {{nid()}}, _, "object", {{rand(1)}}),
+    child_of({{fid()}}, {{rand(1)}}, _, "function", {{nid(parent)}})
+)
