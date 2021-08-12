@@ -1,0 +1,5 @@
+
+/* SNIPPET: [modifiers] the_function.dl */ 
+( cost:=5
+    child_of({{fid()}}, _, "function", {{gid(parent)}}, {{gid()}}, {{type(parent)}}, {{type()}})
+)

@@ -1,0 +1,8 @@
+
+/* SNIPPET: [modifiers] call_target.dl */
+( cost:=5
+    child_of({{fid()}}, _, "function", {{gid(parent)}}, {{gid()}}, "call", "identifier")
+; /* OR */
+    child_of({{fid()}}, _, "object", {{rand(1)}}, {{gid()}}, "attribute", {{type()}}),
+    child_of({{fid()}}, _, "function", {{gid(parent)}}, {{rand(1)}}, "call", "attribute")
+)

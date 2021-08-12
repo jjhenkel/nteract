@@ -1,0 +1,5 @@
+
+/* SNIPPET: [modifiers] parent.dl */ 
+( cost:=5
+    child_of({{fid()}}, _, _, {{gid()}}, {{gid(parent)}}, {{type()}}, {{type(parent)}})
+)

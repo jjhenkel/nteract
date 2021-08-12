@@ -1,0 +1,9 @@
+
+
+.decl literal_types(type:TypeName)
+literal_types("string").
+literal_types("none").
+literal_types("true").
+literal_types("false").
+literal_types("integer").
+literal_types("float").

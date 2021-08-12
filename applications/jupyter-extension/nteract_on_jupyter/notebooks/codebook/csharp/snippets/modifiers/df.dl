@@ -1,0 +1,18 @@
+
+/* SNIPPET: [modifiers] df.dl */ 
+( cost:=4
+    /* Flow from source -> X -> Y -> sink */ 
+    tdataflow({{fid()}}, {{gid(child1)}}, {{gid()}}),
+    dataflow({{fid()}}, {{gid()}}, {{output("to")}}, {{output("edge")}}),
+    tdataflow({{fid()}}, {{output("to")}}, {{gid(child2)}})
+;
+    /* source = X -> Y */
+    {{gid(child1)}} = {{gid()}},
+    dataflow({{fid()}}, {{gid()}}, {{output("to")}}, {{output("edge")}}),
+    tdataflow({{fid()}}, {{output("to")}}, {{gid(child2)}})
+;
+    /* X -> Y = sink */
+    tdataflow({{fid()}}, {{gid(child1)}}, {{gid()}}),
+    {{gid(child2)}} = {{output("to")}},
+    dataflow({{fid()}}, {{gid()}}, {{output("to")}}, {{output("edge")}})
+)

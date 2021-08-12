@@ -1,0 +1,107 @@
+
+
+class ChunkMeta:
+    def __init__(self, chunk, rindex, fpaths):
+        self.chunk = chunk
+        self.rindex = rindex
+        self.fpaths = fpaths
+        self.fids_to_fpaths = {
+            hashit('parsed/' + os.path.basename(fpath) + '.xml.gz'): fpath for fpath in self.fpaths
+        }
+        self.fids_set = set(self.rindex.fid.unique())
+    
+    def write_out_filter(self, hashed_words, allowable_fids=None):
+        # If we have no constraints, we write no file
+        if len(hashed_words) == 0 and allowable_fids is None:
+            try:
+                os.remove('/tmp/query-inputs{}/relations/filter-fids.txt'.format(self.chunk))
+            except:
+                pass
+            return len(self.fids_set)
+
+        # Matches ALL the prefilter words
+        matches = [ self.fids_set ]
+        for word in hashed_words:
+            matches.append(set(
+                self.rindex[self.rindex.tid == word].fid.unique()
+            ))
+        
+        matches = matches[0].intersection(*matches)
+
+        # If we are further constrained, write that out
+        if allowable_fids is not None:
+            matches = matches.intersection(allowable_fids)
+        
+        os.makedirs('/tmp/query-inputs{}/relations'.format(self.chunk), exist_ok=True)
+        os.makedirs('/tmp/query-outputs{}/relations'.format(self.chunk), exist_ok=True)
+
+        with open('/tmp/query-inputs{}/relations/filter-fids.txt'.format(self.chunk), 'w') as fh:
+            for match in matches:
+                fh.write(str(match) + '\n')
+        
+        return len(matches)
+
+
+class MetaFilter:
+    def __init__(self, hashed_words, allowable_fids=None):
+        self.hashed_words = hashed_words
+        self.allowable_fids = allowable_fids
+    
+    def __call__(self, chunk):
+        return chunk.write_out_filter(
+            self.hashed_words, self.allowable_fids
+        )
+
+
+class IndexFilter:
+    def __init__(self):
+        self.rindex = None
+        self.chunk = ""
+    
+    def __call__(self, chunk):
+        rindex = pd.read_parquet(
+            '{}/relations/rindex.merged'.format(chunk),
+            columns=['tid', 'fid']
+        )
+        
+        fpaths = []
+        with open('{}/listing.txt'.format(chunk)) as fh:
+            fpaths = [ x.strip() for x in fh.readlines() if len(x.strip()) > 0 ]
+        
+        return ChunkMeta(chunk, rindex, fpaths)
+
+
+
+# pool = multiprocessing.Pool()
+# chunks = list(glob.glob(Evaluator._dataset + '/chunked/chunk-*'))
+
+# print('Using dataset "{}"'.format(Evaluator._dataset))
+# print('  + Dataset has {} chunks'.format(len(chunks)))
+
+# for chunk in tqdm.tqdm(pool.imap(index_filter, chunks), desc="  + Loading metadata", total=len(chunks)):
+#     Evaluator._chunks_meta.append(chunk)
+#     for fid, fpath in chunk.fids_to_fpaths.items():
+#         Evaluator._fids_to_fpaths[fid] = fpath
+
+
+
+import glob
+import xxhash
+import os
+
+fpaths = []
+for chunk in glob.glob('/data/gh-2017/chunked/chunk-*'):
+  with open('{}/listing.txt'.format(chunk)) as fh:
+      fpaths.extend([ x.strip() for x in fh.readlines() if len(x.strip()) > 0 ])
+
+def hashit(thing):
+    return int.from_bytes(
+        xxhash.xxh64(thing, seed=3235823838).intdigest().to_bytes(8, byteorder='little'),
+        signed=True, byteorder="little"
+    )
+  
+fids_to_fpaths = {}
+for fpath in fpaths:
+  fids_to_fpaths[hashit('parsed/' + os.path.basename(fpath) + '.xml.gz')] = fpath
+
+Evaluator._fids_to_fpaths = fids_to_fpaths

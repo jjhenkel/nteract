@@ -1,0 +1,5 @@
+
+( cost:=10
+    {{text()}} = {{output("text")}},
+    node_info({{fid()}}, {{gid()}}, {{type()}}, _, _, _, _, _, _, _, {{text()}})
+)

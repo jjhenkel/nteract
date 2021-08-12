@@ -37,19 +37,6 @@ class Utils:
             return ('[' + df[col].str.strip('[]') + ']').apply(
                 _to_py_list
             )
-
-    @staticmethod
-    def get_comp_op(df, filter, lhs, rhs, use_dask=False):
-        def _get_comp_op(x):
-            cleaned = str(x[0]).replace(str(x[1]), '').replace(str(x[2]), '').strip()
-            
-            if cleaned in ['!=', '==', '>', '<', '>=', '<=', 'is', 'is not', 'in', 'not in', '<>']:
-                return cleaned
-            return '<unk>'
-        if use_dask:
-            return df[[filter, lhs, rhs]].apply(_get_comp_op, axis=1, meta='string')
-        else:
-            return df[[filter, lhs, rhs]].apply(_get_comp_op, axis=1)
   
 
 ###############################################################################
@@ -57,124 +44,30 @@ class Utils:
 # - usage type(... constraints ...)
 ###############################################################################
 
-def imports(*args):
-    return CB(['import_statement', 'import_from_statement']).with_constraints(*args)
-
-
 def literal(*args):
     return CB('$literal').with_constraints(*args)
 
 
-def comparison(*args):
-    return CB('comparison_operator').with_constraints(*args)
+def member_expression(*args):
+    return CB('member_access_expression').with_constraints(*args)
 
 
 def anything(*args):
     return CB('_').with_constraints(*args)
 
 
-def attribute(*args):
-    return CB('attribute').with_constraints(*args)
-
-
-def param(*args):
-    return CB('formal_parameter').with_constraints(*args)
-
-
 def call(*args):
-    return CB('call').with_constraints(*args)
-
-
-def float_(*args):
-    return CB('float').with_constraints(*args)
-
-
-def keyword_argument(*args):
-    return CB('keyword_argument').with_constraints(*args)
+    return CB('invocation_expression').with_constraints(*args)
 
 
 def string(*args):
-    return CB('string').with_constraints(*args)
+    return CB('string_literal').with_constraints(*args)
 
 
 def identifier(*args):
     return CB('identifier').with_constraints(*args)
 
 
-def integer(*args):
-    return CB('integer').with_constraints(*args)
-
-
-def for_loop(*args):
-    return CB('for_statement').with_constraints(*args)
-
-
-def while_loop(*args):
-    return CB('while_statement').with_constraints(*args)
-
-
-def function_def(*args):
-    return CB('function_definition').with_constraints(*args)
-
-
-def expression_stmt(*args):
-    return CB('expression_statement').with_constraints(*args)
-
-
-def slice_(*args):
-    return CB('slice').with_constraints(*args)
-
-
-def subscript(*args):
-    return CB('subscript').with_constraints(*args)
-
-
-def class_def(*args):
-    return CB('class_definition').with_constraints(*args)
-
-
-def comment(*args):
-    return CB('comment').with_constraints(*args)
-
-
-def assignment(*args):
-    return CB('assignment').with_constraints(*args)
-
-
-def list_(*args):
-    return CB('list').with_constraints(*args)
-
-
-def if_statement(*args):
-    return CB('if_statement').with_constraints(*args)
-
-
-def try_statement(*args):
-    return CB('try_statement').with_constraints(*args)
-
-
-def while_statement(*args):
-    return CB('while_statement').with_constraints(*args)
-
-
-def lambda_expression(*args):
-    return CB('lambda').with_constraints(*args)
-
-
-def import_stmt(*args):
-    return CB('import_statement').with_constraints(*args)
-
-
-def import_from_stmt(*args):
-    return CB('import_from_statement').with_constraints(*args)
-
-
-def dotted_name(*args):
-    return CB('dotted_name').with_constraints(*args)
-
-
-def wildcard_import(*args):
-    return CB('wildcard_import').with_constraints(*args)
 
 ###############################################################################
 # CONSTRAINTS
@@ -232,22 +125,6 @@ def any_child():
     return CB().with_mods(CBAnyChildIs(), CBRefTo())
 
 
-def module_name():
-    return CB().with_mods(CBModuleName())
-
-
-def imported_name():
-    return CB().with_mods(CBImportedName())
-
-
-def the_first_subscript():
-    return CB().with_mods(CBFirstSubscriptIs())
-
-
-def the_second_subscript():
-    return CB().with_mods(CBSecondSubscriptIs())
-
-
 def the_first_arg():
     return CB().with_mods(CBFirstArgIs())
 
@@ -276,10 +153,6 @@ def the_second_arg():
     return CB().with_mods(CBSecondArgIs())
 
 
-def the_type():
-    return CB().with_mods(CBTypeIs())
-
-
 def uses():
     return CB().with_mods(CBUses())
 
@@ -292,14 +165,6 @@ def the_lhs():
     return CB().with_mods(CBLhs())
 
 
-def the_module_root():
-    return CB().with_mods(CBModuleRoot())
-
-
-def the_object():
-    return CB().with_mods(CBObjectIs())
-
-
 def the_body():
     return CB().with_mods(CBBodyIs())
 
@@ -308,24 +173,8 @@ def the_attribute():
     return CB().with_mods(CBAttributeIs())
 
 
-def the_subscript():
-    return CB().with_mods(CBSubscriptIs())
-
-
-def the_only_subscript():
-    return CB().with_mods(CBOnlySubscriptIs())
-
-
-def the_value():
-    return CB().with_mods(CBValueIs())
-
-
-def the_name():
-    return CB().with_mods(CBNameIs())
-
-
-def the_function():
-    return CB().with_mods(CBFunctionIs())
+def the_member():
+    return CB().with_mods(CBMemberIs())
 
 
 def call_target():
@@ -336,8 +185,12 @@ def every_child():
     return CB().with_mods(CBEveryChildIs())
 
 
-def the_only_lambda_param():
-    return CB().with_mods(CBOnlyLambdaParamIs())
+def the_expression():
+    return CB().with_mods(CBExpressionIs())
+
+
+def the_function():
+    return CB().with_mods(CBFunctionIs())
 
 
 def child():
@@ -362,24 +215,12 @@ def uses_are(subq):
     return uses().merge(subq)
 
 
-def the_value_is(subq):
-    return the_value().merge(subq)
-
-
 def the_body_is(subq):
     return the_body().merge(subq)
 
 
-def the_subscript_is(subq):
-    return the_subscript().merge(subq)
-
-
-def the_first_subscript_is(subq):
-    return the_first_subscript().merge(subq)
-
-
-def the_second_subscript_is(subq):
-    return the_second_subscript().merge(subq)
+def the_function_is(subq):
+    return the_function().merge(subq)
 
 
 def the_first_arg_is(subq):
@@ -388,10 +229,6 @@ def the_first_arg_is(subq):
 
 def the_second_arg_is(subq):
     return the_second_arg().merge(subq)
-
-
-def the_only_subscript_is(subq):
-    return the_only_subscript().merge(subq)
 
 
 def child_is(subq):
@@ -418,28 +255,12 @@ def the_attribute_is(subq):
     return the_attribute().merge(subq)
 
 
-def the_object_is(subq):
-    return the_object().merge(subq)
-
-
 def call_target_is(subq):
     return call_target().merge(subq)
 
 
-def the_module_root_is(subq):
-    return the_module_root().merge(subq)
-
-
 def any_arg_is(subq):
     return any_arg().merge(subq)
-
-
-def module_name_is(subq):
-    return module_name().merge(subq)
-
-
-def imported_name_is(subq):
-    return imported_name().merge(subq)
 
 
 def any_parent_is(subq):
@@ -470,20 +291,13 @@ def the_second_arg_is(subq):
     return the_second_arg().merge(subq)
 
 
-def the_only_lambda_param_is(subq):
-    return the_only_lambda_param().merge(subq)
+def the_expression_is(subq):
+    return the_expression().merge(subq)
 
 
-def the_function_is(subq):
-    return the_function().merge(subq)
+def the_member_is(subq):
+    return the_member().merge(subq)
 
-
-def the_name_is(subq):
-    return the_name().merge(subq)
-
-
-def the_type_is(subq):
-    return the_type().merge(subq)
 
 ###############################################################################
 # (NAMED) INFIX OPERATORS
@@ -522,11 +336,46 @@ def execute(x, compile=False, debug=False, use_dask=False, limit=None, prefilter
 def visualize(frame, focus):
     from IPython import display
 
+    import glob
+    import xxhash
+    import hashlib
+    import os
+
+    if Evaluator._fids_to_fpaths is None:
+        print("Loading visualization metadata; this may take a minute...")
+        fpaths = []
+        for chunk in glob.glob('{}/chunked/chunk-*/listing*'.format(Evaluator._dataset)):
+            with open(chunk) as fh:
+                fpaths.extend([ x.strip() for x in fh.readlines() if len(x.strip()) > 0 ])
+
+        def hashit(thing):
+            return int.from_bytes(
+                xxhash.xxh64(thing, seed=3235823838).intdigest().to_bytes(8, byteorder='little'),
+                signed=True, byteorder="little"
+            )
+        
+        def sha256sum(filename):
+            h  = hashlib.sha256()
+            b  = bytearray(128*1024)
+            mv = memoryview(b)
+            with open(filename, 'rb', buffering=0) as f:
+                for n in iter(lambda : f.readinto(mv), 0):
+                    h.update(mv[:n])
+            return h.hexdigest()
+                
+        fids_to_fpaths = {}
+        for fpath in fpaths:
+            vfpath = sha256sum(fpath.replace('data/raw', 'data/csharp/raw')) + '.cs'
+            fids_to_fpaths[hashit('parsed/' + vfpath + '.xml.gz')] = fpath
+
+        Evaluator._fids_to_fpaths = fids_to_fpaths
+        print("  + Loaded!")
+
     data = frame.copy()
 
     reformated = {}
     data['fpath'] = data['fid'].apply(
-        lambda x: Evaluator.resolve_fid(x)
+        lambda x: Evaluator.resolve_fid(x).replace('data/raw', 'cs-data') # TODO: hack
     )
 
     keys = []
@@ -554,8 +403,9 @@ def visualize(frame, focus):
             })
 
     display.display({
-        'application/code-book-matches+json': { 'results': [reformated], 'lang': 'python' }
+        'application/code-book-matches+json': { 'results': [reformated], 'lang': 'csharp' }
     }, raw=True)
+
 
 
 def show_dot(dot):
@@ -573,39 +423,6 @@ def showgid(gid):
 ###############################################################################
 # MISC / PRE-Made queries
 ###############################################################################
-
-
-class Queries:
-    @staticmethod
-    def qualified_call(i,c): 
-        return execute(
-            call(with_name(c)) % 'call'
-            |where| call_target()
-                |isa| use_of(imports(with_name(i))),
-            compile=True
-        ).assign(call_type=c, import_type=i) 
-
-    @staticmethod
-    def qualified_calls(i, cs): 
-        temp1 = execute(
-            imports(with_name(i)) % 'import',
-            compile=True
-        )
-
-        temp2 = execute(
-            use_of(imports(from_set(temp1, 'gid_import'))) % 'use',
-            compile=True
-        )
-
-        qc = lambda c: execute(
-            call(with_name(c)) % 'call'
-            |where| call_target() |is_| anything(from_set(temp2, 'gid_use')),
-            compile=True
-        ).assign(call_type=c, import_type=i) 
-
-        return pd.concat([
-           qc(c) for c in cs
-        ])
 
 
 def danger_reset_paths():

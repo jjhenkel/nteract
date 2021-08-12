@@ -86,27 +86,12 @@ def hashit(thing):
 
 
 class Evaluator:
-    _dataset = '/data/test-1k'
+    _dataset = '/data/csharp'
+    _fids_to_fpaths = None
 
     @staticmethod
     def resolve_fid(fid):
         return Evaluator._fids_to_fpaths[fid]
-
-    @staticmethod
-    def use_ds_test_1k():
-        Evaluator._dataset = '/data/test-1k'
-
-    @staticmethod
-    def use_ds_gh_2017():
-        Evaluator._dataset = '/data/gh-2017'
-
-    @staticmethod
-    def use_ds_gh_2019():
-        Evaluator._dataset = '/data/gh-2019'
-
-    @staticmethod
-    def use_ds_gh_2020():
-        Evaluator._dataset = '/data/gh-2020'
 
     def __init__(self, query, should_debug=False, prefilter_files=None):
         query.idify()
@@ -529,11 +514,11 @@ class Evaluator:
         if node.has_mod(CBAttributeIs):
             text, _, cost = S['/modifiers/the_attribute.dl'](node)
             self.query.append((text, cost))
-        if node.has_mod(CBSecondSubscriptIs):
-            text, _, cost = S['/modifiers/second_subscript.dl'](node)
+        if node.has_mod(CBMemberIs):
+            text, _, cost = S['/modifiers/the_member.dl'](node)
             self.query.append((text, cost))
-        if node.has_mod(CBFirstSubscriptIs):
-            text, _, cost = S['/modifiers/first_subscript.dl'](node)
+        if node.has_mod(CBExpressionIs):
+            text, _, cost = S['/modifiers/the_expression.dl'](node)
             self.query.append((text, cost))
         if node.has_mod(CBSubscriptIs):
             text, _, cost = S['/modifiers/the_subscript.dl'](node)

@@ -2,7 +2,7 @@ import os
 
 
 class CBName:
-    _kind = 'Python.Constraints.Name'
+    _kind = 'C#.Constraints.Name'
 
     def __init__(self, value):
         self.kind = CBName._kind
@@ -21,7 +21,7 @@ class CBName:
 
 
 class CBSameText:
-    _kind = 'Python.Constraints.SameText'
+    _kind = 'C#.Constraints.SameText'
 
     def __init__(self, value):
         self.kind = CBSameText._kind
@@ -36,7 +36,7 @@ class CBSameText:
 
 
 class CBExactlyTwoChildren:
-    _kind = 'Python.Constraints.ExactlyTwoChildren'
+    _kind = 'C#.Constraints.ExactlyTwoChildren'
 
     def __init__(self):
         self.kind = CBExactlyTwoChildren._kind
@@ -50,7 +50,7 @@ class CBExactlyTwoChildren:
 
 
 class CBExactlyTwoNormalArgs:
-    _kind = 'Python.Constraints.ExactlyTwoNormalArgs'
+    _kind = 'C#.Constraints.ExactlyTwoNormalArgs'
 
     def __init__(self):
         self.kind = CBExactlyTwoNormalArgs._kind
@@ -64,7 +64,7 @@ class CBExactlyTwoNormalArgs:
 
 
 class CBEveryChildHasType:
-    _kind = 'Python.Constraints.EveryChildHasType'
+    _kind = 'C#.Constraints.EveryChildHasType'
 
     def __init__(self, value):
         self.kind = CBEveryChildHasType._kind
@@ -79,7 +79,7 @@ class CBEveryChildHasType:
 
 
 class CBText:
-    _kind = 'Python.Constraints.Text'
+    _kind = 'C#.Constraints.Text'
 
     def __init__(self, value):
         self.kind = CBText._kind
@@ -95,7 +95,7 @@ class CBText:
 
 
 class CBFieldIndex:
-    _kind = 'Python.Constraints.FieldIndex'
+    _kind = 'C#.Constraints.FieldIndex'
 
     def __init__(self, field, index=None):
         self.kind = CBFieldIndex._kind
@@ -120,7 +120,7 @@ class CBFieldIndex:
 
 
 class CBStepsAway:
-    _kind = 'Python.Constraints.StepsAway'
+    _kind = 'C#.Constraints.StepsAway'
 
     def __init__(self, steps, op=None):
         self.kind = CBStepsAway._kind
@@ -140,7 +140,7 @@ class CBStepsAway:
 
 
 class CBAllowCastsAndParens:
-    _kind = 'Python.Constraints.AllowCastsAndParens'
+    _kind = 'C#.Constraints.AllowCastsAndParens'
 
     def __init__(self, max_depth = None):
         self.kind = CBAllowCastsAndParens._kind
@@ -160,7 +160,7 @@ class CBAllowCastsAndParens:
 
 
 class CBFromSet:
-    _kind = 'Python.Constraints.FromSet'
+    _kind = 'C#.Constraints.FromSet'
 
     def __init__(self, frame, files=None):
         self.kind = CBFromSet._kind

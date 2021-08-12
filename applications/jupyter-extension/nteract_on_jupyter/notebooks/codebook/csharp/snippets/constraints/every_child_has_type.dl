@@ -1,0 +1,6 @@
+
+/* SNIPPET: [modifiers] every_child_has_type.dl */
+( cost:=5
+    /* Assert that we have only a singular type for all of our children */
+    types_info({{fid()}}, {{gid()}}, {{type()}}, {{output("child_type")}}, _, _)
+)

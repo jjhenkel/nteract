@@ -1,0 +1,5 @@
+
+/* SNIPPET: [modifiers] the_rhs.dl */ 
+( cost:=5
+    child_of({{fid()}}, _, "right", {{gid(parent)}}, {{gid()}}, {{type(parent)}}, {{type()}})
+)

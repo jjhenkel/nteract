@@ -1,0 +1,22 @@
+
+/* SNIPPET: [modifiers] module_root.dl */
+( cost:=10
+    (
+        /* Something that is the 'name' child of us */
+        child_of({{fid()}}, _, "name", {{gid()}}, {{rand(1)}}, "import_statement", "aliased_import"),
+        /* Something that is the 'name' child of the prev */
+        child_of({{fid()}}, _, "name", {{rand(1)}}, {{rand(2)}}, "aliased_import", "dotted_name"),
+        node_info({{fid()}}, {{rand(2)}}, "dotted_name", _, _, _, _, _, _, _, {{output("module_name")}})
+        /*  ^ This covers `import pandas.blah as ...` */
+    ; /* OR */
+        /* Something that is the 'name' child of us */
+        child_of({{fid()}}, _, "name", {{gid()}}, {{rand(1)}}, "import_statement", "dotted_name"),
+        node_info({{fid()}}, {{rand(1)}}, "dotted_name", _, _, _, _, _, _, _, {{output("module_name")}})
+        /*  ^ This covers `import pandas.blah` */
+    ; /* OR */
+        /* Something that is the 'module_name' child of us */
+        child_of({{fid()}}, _, "module_name", {{gid()}}, {{rand(1)}}, "import_from_statement", "dotted_name"),
+        node_info({{fid()}}, {{rand(1)}}, "dotted_name", _, _, _, _, _, _, _, {{output("module_name")}})
+        /*  ^ This covers `from pandas.blah import ...` */
+    )
+)

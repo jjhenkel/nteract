@@ -1,0 +1,5 @@
+
+/* SNIPPET: [modifiers] the_expression.dl */ 
+( cost:=5
+    child_of({{fid()}}, _, "expression", {{gid(parent)}}, {{gid()}}, {{type(parent)}}, {{type()}})
+)

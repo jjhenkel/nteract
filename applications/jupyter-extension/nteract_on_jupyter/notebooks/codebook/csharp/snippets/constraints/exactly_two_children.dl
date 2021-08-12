@@ -1,0 +1,5 @@
+
+/* SNIPPET: [modifiers] exactly_two_children.dl */
+( cost:=5
+    types_info({{fid()}}, {{gid()}}, {{type()}}, _, _, 2)
+)
